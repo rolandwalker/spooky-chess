@@ -12,6 +12,7 @@ impl Position {
         Position { col, row }
     }
 
+    #[inline]
     pub fn is_valid(&self, width: usize, height: usize) -> bool {
         self.col < width && self.row < height
     }
