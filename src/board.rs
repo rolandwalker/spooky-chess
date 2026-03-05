@@ -194,6 +194,22 @@ impl<const NW: usize> Board<NW> {
         }
     }
 
+    /// Remove a known piece from the board. Caller must guarantee `piece` matches what's at `pos`.
+    #[inline]
+    pub fn remove_piece(&mut self, pos: &Position, piece: &Piece) {
+        let idx = self.index(pos.col, pos.row);
+        self.piece_type_bb_mut(piece.piece_type).clear(idx);
+        self.color_bb_mut(piece.color).clear(idx);
+    }
+
+    /// Place a piece on the board. The target square must be empty.
+    #[inline]
+    pub fn place_piece(&mut self, pos: &Position, piece: &Piece) {
+        let idx = self.index(pos.col, pos.row);
+        self.piece_type_bb_mut(piece.piece_type).set(idx);
+        self.color_bb_mut(piece.color).set(idx);
+    }
+
     pub fn clear(&mut self) {
         self.pawns = Bitboard::empty();
         self.knights = Bitboard::empty();
