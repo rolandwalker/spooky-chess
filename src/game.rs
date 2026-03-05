@@ -878,127 +878,124 @@ impl<const NW: usize> Game<NW> {
     }
 
     fn is_square_attacked(&self, square: &Position, by_color: Color) -> bool {
-        for (pos, piece) in self.board.pieces(by_color) {
-            if self.can_piece_attack(&pos, &piece, square) {
-                return true;
+        let width = self.board.width();
+        let height = self.board.height();
+        let occupied = self.board.occupied();
+        let enemy = self.board.color_bb(by_color);
+        let sq_col = square.col as i32;
+        let sq_row = square.row as i32;
+
+        // 1. Pawn attacks
+        let pawn_dir: i32 = if by_color == Color::White { -1 } else { 1 };
+        let pawn_row = (sq_row + pawn_dir) as usize;
+        if pawn_row < height {
+            let pawns = self.board.piece_type_bb(PieceType::Pawn) & enemy;
+            for col_offset in [-1i32, 1i32] {
+                let pawn_col = (sq_col + col_offset) as usize;
+                if pawn_col < width {
+                    let idx = pawn_row * width + pawn_col;
+                    if pawns.get(idx) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 2. Knight attacks
+        let knights = self.board.piece_type_bb(PieceType::Knight) & enemy;
+        if !knights.is_empty() {
+            for (col_off, row_off) in [
+                (-2, -1),
+                (-2, 1),
+                (-1, -2),
+                (-1, 2),
+                (1, -2),
+                (1, 2),
+                (2, -1),
+                (2, 1),
+            ] {
+                let nc = (sq_col + col_off) as usize;
+                let nr = (sq_row + row_off) as usize;
+                if nc < width && nr < height {
+                    let idx = nr * width + nc;
+                    if knights.get(idx) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        // 3. King attacks
+        let kings = self.board.piece_type_bb(PieceType::King) & enemy;
+        if !kings.is_empty() {
+            for col_off in -1..=1i32 {
+                for row_off in -1..=1i32 {
+                    if col_off == 0 && row_off == 0 {
+                        continue;
+                    }
+                    let kc = (sq_col + col_off) as usize;
+                    let kr = (sq_row + row_off) as usize;
+                    if kc < width && kr < height {
+                        let idx = kr * width + kc;
+                        if kings.get(idx) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Sliding attacks — rooks/queens along ranks and files
+        let rooks_queens = (self.board.piece_type_bb(PieceType::Rook)
+            | self.board.piece_type_bb(PieceType::Queen))
+            & enemy;
+        if !rooks_queens.is_empty() {
+            for (col_dir, row_dir) in [(0i32, 1i32), (0, -1), (1, 0), (-1, 0)] {
+                let mut d = 1;
+                loop {
+                    let c = (sq_col + col_dir * d) as usize;
+                    let r = (sq_row + row_dir * d) as usize;
+                    if c >= width || r >= height {
+                        break;
+                    }
+                    let idx = r * width + c;
+                    if rooks_queens.get(idx) {
+                        return true;
+                    }
+                    if occupied.get(idx) {
+                        break;
+                    }
+                    d += 1;
+                }
+            }
+        }
+
+        // 5. Sliding attacks — bishops/queens along diagonals
+        let bishops_queens = (self.board.piece_type_bb(PieceType::Bishop)
+            | self.board.piece_type_bb(PieceType::Queen))
+            & enemy;
+        if !bishops_queens.is_empty() {
+            for (col_dir, row_dir) in [(1i32, 1i32), (1, -1), (-1, 1), (-1, -1)] {
+                let mut d = 1;
+                loop {
+                    let c = (sq_col + col_dir * d) as usize;
+                    let r = (sq_row + row_dir * d) as usize;
+                    if c >= width || r >= height {
+                        break;
+                    }
+                    let idx = r * width + c;
+                    if bishops_queens.get(idx) {
+                        return true;
+                    }
+                    if occupied.get(idx) {
+                        break;
+                    }
+                    d += 1;
+                }
             }
         }
 
         false
-    }
-
-    fn can_piece_attack(&self, src: &Position, piece: &Piece, dst: &Position) -> bool {
-        match piece.piece_type {
-            PieceType::Pawn => self.can_pawn_attack(src, piece, dst),
-            PieceType::Knight => self.can_knight_attack(src, dst),
-            PieceType::Bishop => self.can_bishop_attack(src, dst),
-            PieceType::Rook => self.can_rook_attack(src, dst),
-            PieceType::Queen => self.can_queen_attack(src, dst),
-            PieceType::King => self.can_king_attack(src, dst),
-        }
-    }
-
-    fn can_pawn_attack(&self, src: &Position, piece: &Piece, dst: &Position) -> bool {
-        let direction = if piece.color == Color::White {
-            1i32
-        } else {
-            -1i32
-        };
-        let target_row = src.row as i32 + direction;
-
-        if target_row < 0 || target_row >= self.board.height() as i32 {
-            return false;
-        }
-
-        if dst.row != target_row as usize {
-            return false;
-        }
-
-        let col_diff = (dst.col as i32 - src.col as i32).abs();
-        col_diff == 1
-    }
-
-    fn can_knight_attack(&self, src: &Position, dst: &Position) -> bool {
-        let col_diff = (dst.col as i32 - src.col as i32).abs();
-        let row_diff = (dst.row as i32 - src.row as i32).abs();
-
-        (col_diff == 2 && row_diff == 1) || (col_diff == 1 && row_diff == 2)
-    }
-
-    fn can_bishop_attack(&self, src: &Position, dst: &Position) -> bool {
-        let col_diff = (dst.col as i32 - src.col as i32).abs();
-        let row_diff = (dst.row as i32 - src.row as i32).abs();
-
-        if col_diff != row_diff || col_diff == 0 {
-            return false;
-        }
-
-        // Check if path is clear
-        let col_dir = if dst.col > src.col { 1 } else { -1 };
-        let row_dir = if dst.row > src.row { 1 } else { -1 };
-
-        for i in 1..col_diff {
-            let check_col = src.col as i32 + i * col_dir;
-            let check_row = src.row as i32 + i * row_dir;
-
-            if check_col < 0
-                || check_col >= self.board.width() as i32
-                || check_row < 0
-                || check_row >= self.board.height() as i32
-            {
-                return false;
-            }
-
-            let check_pos = Position::new(check_col as usize, check_row as usize);
-
-            if self.board.get_piece(&check_pos).is_some() {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    fn can_rook_attack(&self, src: &Position, dst: &Position) -> bool {
-        if src.col != dst.col && src.row != dst.row {
-            return false;
-        }
-
-        // Check if path is clear
-        if src.col == dst.col {
-            let start_row = src.row.min(dst.row) + 1;
-            let end_row = src.row.max(dst.row);
-
-            for row in start_row..end_row {
-                let check_pos = Position::new(src.col, row);
-                if self.board.get_piece(&check_pos).is_some() {
-                    return false;
-                }
-            }
-        } else {
-            let start_col = src.col.min(dst.col) + 1;
-            let end_col = src.col.max(dst.col);
-
-            for col in start_col..end_col {
-                let check_pos = Position::new(col, src.row);
-                if self.board.get_piece(&check_pos).is_some() {
-                    return false;
-                }
-            }
-        }
-
-        true
-    }
-
-    fn can_queen_attack(&self, src: &Position, dst: &Position) -> bool {
-        self.can_rook_attack(src, dst) || self.can_bishop_attack(src, dst)
-    }
-
-    fn can_king_attack(&self, src: &Position, dst: &Position) -> bool {
-        let col_diff = (dst.col as i32 - src.col as i32).abs();
-        let row_diff = (dst.row as i32 - src.row as i32).abs();
-
-        col_diff <= 1 && row_diff <= 1 && (col_diff + row_diff) > 0
     }
 
     fn is_in_check(&self, color: Color) -> bool {
@@ -1308,12 +1305,7 @@ impl StandardGame {
 #[hotpath::measure_all]
 impl<const NW: usize> std::fmt::Display for Game<NW> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "Game(current_player: {})\n{}",
-            self.turn(),
-            self.board
-        )
+        write!(f, "Game(current_player: {})\n{}", self.turn(), self.board)
     }
 }
 
@@ -1356,25 +1348,37 @@ mod tests {
         let mut game = StdGame::standard();
         game.board.clear();
 
+        // Need kings on the board for a valid position
+        game.board.set_piece(
+            &Position::new(0, 0),
+            Some(Piece::new(PieceType::King, Color::White)),
+        );
+        game.board.set_piece(
+            &Position::new(7, 7),
+            Some(Piece::new(PieceType::King, Color::Black)),
+        );
+        game.white_king_pos = Position::new(0, 0);
+        game.black_king_pos = Position::new(7, 7);
+
         let rook = Piece::new(PieceType::Rook, Color::White);
         let rook_pos = Position::new(4, 4); // e5
         game.board.set_piece(&rook_pos, Some(rook));
 
-        // Rook can attack along rows and cols
-        assert!(game.can_rook_attack(&rook_pos, &Position::new(4, 0))); // e1
-        assert!(game.can_rook_attack(&rook_pos, &Position::new(4, 7))); // e8
-        assert!(game.can_rook_attack(&rook_pos, &Position::new(0, 4))); // a5
-        assert!(game.can_rook_attack(&rook_pos, &Position::new(7, 4))); // h5
+        // Rook can attack along rows and cols (is_square_attacked checks if White attacks the square)
+        assert!(game.is_square_attacked(&Position::new(4, 1), Color::White)); // e2
+        assert!(game.is_square_attacked(&Position::new(4, 7), Color::White)); // e8
+        assert!(game.is_square_attacked(&Position::new(1, 4), Color::White)); // b5
+        assert!(game.is_square_attacked(&Position::new(7, 4), Color::White)); // h5
 
-        // Cannot attack diagonally
-        assert!(!game.can_rook_attack(&rook_pos, &Position::new(5, 5))); // f6
+        // Cannot attack diagonally (only rook on board besides kings)
+        assert!(!game.is_square_attacked(&Position::new(5, 5), Color::White)); // f6
 
         // Test blocked path
         let blocker = Piece::new(PieceType::Pawn, Color::Black);
         game.board.set_piece(&Position::new(4, 6), Some(blocker)); // e7
 
-        assert!(!game.can_rook_attack(&rook_pos, &Position::new(4, 7))); // e8 (blocked)
-        assert!(game.can_rook_attack(&rook_pos, &Position::new(4, 6))); // e7 (can capture)
+        assert!(!game.is_square_attacked(&Position::new(4, 7), Color::White)); // e8 (blocked)
+        assert!(game.is_square_attacked(&Position::new(4, 6), Color::White)); // e7 (can capture)
     }
 
     #[test]
@@ -1382,25 +1386,37 @@ mod tests {
         let mut game = StdGame::standard();
         game.board.clear();
 
+        // Need kings on the board for a valid position
+        game.board.set_piece(
+            &Position::new(0, 2),
+            Some(Piece::new(PieceType::King, Color::White)),
+        );
+        game.board.set_piece(
+            &Position::new(7, 0),
+            Some(Piece::new(PieceType::King, Color::Black)),
+        );
+        game.white_king_pos = Position::new(0, 2);
+        game.black_king_pos = Position::new(7, 0);
+
         let bishop = Piece::new(PieceType::Bishop, Color::White);
         let bishop_pos = Position::new(4, 4); // e5
         game.board.set_piece(&bishop_pos, Some(bishop));
 
         // Bishop can attack diagonally
-        assert!(game.can_bishop_attack(&bishop_pos, &Position::new(0, 0))); // a1
-        assert!(game.can_bishop_attack(&bishop_pos, &Position::new(7, 7))); // h8
-        assert!(game.can_bishop_attack(&bishop_pos, &Position::new(1, 7))); // b8
-        assert!(game.can_bishop_attack(&bishop_pos, &Position::new(7, 1))); // h2
+        assert!(game.is_square_attacked(&Position::new(0, 0), Color::White)); // a1
+        assert!(game.is_square_attacked(&Position::new(7, 7), Color::White)); // h8
+        assert!(game.is_square_attacked(&Position::new(1, 7), Color::White)); // b8
+        assert!(game.is_square_attacked(&Position::new(7, 1), Color::White)); // h2
 
-        // Cannot attack along rows/cols
-        assert!(!game.can_bishop_attack(&bishop_pos, &Position::new(4, 0))); // e1
+        // Cannot attack along rows/cols (only bishop+kings, kings are far away)
+        assert!(!game.is_square_attacked(&Position::new(4, 1), Color::White)); // e2
 
         // Test blocked path
         let blocker = Piece::new(PieceType::Pawn, Color::Black);
         game.board.set_piece(&Position::new(6, 6), Some(blocker)); // g7
 
-        assert!(!game.can_bishop_attack(&bishop_pos, &Position::new(7, 7))); // h8 (blocked)
-        assert!(game.can_bishop_attack(&bishop_pos, &Position::new(6, 6))); // g7 (can capture)
+        assert!(!game.is_square_attacked(&Position::new(7, 7), Color::White)); // h8 (blocked)
+        assert!(game.is_square_attacked(&Position::new(6, 6), Color::White)); // g7 (can capture)
     }
 
     #[test]
