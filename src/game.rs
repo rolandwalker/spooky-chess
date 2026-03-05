@@ -595,31 +595,35 @@ impl<const NW: usize> Game<NW> {
 
     fn generate_psuedo_legal_pawn_moves(&self, src: &Position, piece: &Piece) -> Vec<Move> {
         let mut moves = Vec::new();
+        let occupied = self.board.occupied();
+        let own_color = self.board.color_bb(piece.color);
+        let width = self.board.width();
+        let height = self.board.height();
 
-        let direction = if piece.color == Color::White {
-            1i32
-        } else {
-            -1i32
-        };
+        let direction: i32 = if piece.color == Color::White { 1 } else { -1 };
+
         let start_row = if piece.color == Color::White {
             1
         } else {
-            self.board.height() - 2
+            height - 2
         };
+
         let promo_row = if piece.color == Color::White {
-            self.board.height() - 2
+            height - 2
         } else {
             1
         };
 
         // Single push
         let dst_row = (src.row as i32 + direction) as usize;
-        if dst_row < self.board.height() {
-            let dst_position = Position::new(src.col, dst_row);
 
-            if self.board.get_piece(&dst_position).is_none() {
+        if dst_row < height {
+            let idx = dst_row * width + src.col;
+
+            if !occupied.get(idx) {
+                let dst_position = Position::new(src.col, dst_row);
+
                 if src.row == promo_row {
-                    // Promotion
                     for piece_type in &[
                         PieceType::Queen,
                         PieceType::Rook,
@@ -642,11 +646,16 @@ impl<const NW: usize> Game<NW> {
         // Double push from starting position
         if src.row == start_row {
             let to_row = (src.row as i32 + 2 * direction) as usize;
-            let to = Position::new(src.col, to_row);
-            let between = Position::new(src.col, (src.row as i32 + direction) as usize);
+            let between_row = (src.row as i32 + direction) as usize;
+            let to_idx = to_row * width + src.col;
+            let between_idx = between_row * width + src.col;
 
-            if self.board.get_piece(&to).is_none() && self.board.get_piece(&between).is_none() {
-                moves.push(Move::from_position(*src, to, MoveFlags::DOUBLE_PUSH));
+            if !occupied.get(to_idx) && !occupied.get(between_idx) {
+                moves.push(Move::from_position(
+                    *src,
+                    Position::new(src.col, to_row),
+                    MoveFlags::DOUBLE_PUSH,
+                ));
             }
         }
 
@@ -655,34 +664,40 @@ impl<const NW: usize> Game<NW> {
             let dst_col = (src.col as i32 + col_offset) as usize;
             let dst_row = (src.row as i32 + direction) as usize;
 
-            if dst_col < self.board.width() && dst_row < self.board.height() {
-                let dst_position = Position::new(dst_col, dst_row);
+            if dst_col < width && dst_row < height {
+                let idx = dst_row * width + dst_col;
 
-                if let Some(target) = self.board.get_piece(&dst_position) {
-                    if target.color != piece.color {
-                        if src.row == promo_row {
-                            // Capture with promotion
-                            for piece_type in &[
-                                PieceType::Queen,
-                                PieceType::Rook,
-                                PieceType::Bishop,
-                                PieceType::Knight,
-                            ] {
-                                moves.push(Move::from_position_with_promotion(
-                                    *src,
-                                    dst_position,
-                                    MoveFlags::CAPTURE | MoveFlags::PROMOTION,
-                                    *piece_type,
-                                ));
-                            }
-                        } else {
-                            moves.push(Move::from_position(*src, dst_position, MoveFlags::CAPTURE));
+                // Regular capture: occupied by enemy
+                if occupied.get(idx) && !own_color.get(idx) {
+                    let dst_position = Position::new(dst_col, dst_row);
+
+                    if src.row == promo_row {
+                        for piece_type in &[
+                            PieceType::Queen,
+                            PieceType::Rook,
+                            PieceType::Bishop,
+                            PieceType::Knight,
+                        ] {
+                            moves.push(Move::from_position_with_promotion(
+                                *src,
+                                dst_position,
+                                MoveFlags::CAPTURE | MoveFlags::PROMOTION,
+                                *piece_type,
+                            ));
                         }
+                    } else {
+                        moves.push(Move::from_position(
+                            *src,
+                            Position::new(dst_col, dst_row),
+                            MoveFlags::CAPTURE,
+                        ));
                     }
                 }
 
                 // En passant
                 if let Some(ep) = self.en_passant {
+                    let dst_position = Position::new(dst_col, dst_row);
+
                     if ep == dst_position {
                         moves.push(Move::from_position(
                             *src,
@@ -699,6 +714,10 @@ impl<const NW: usize> Game<NW> {
 
     fn generate_psuedo_legal_knight_moves(&self, src: &Position, piece: &Piece) -> Vec<Move> {
         let mut moves = Vec::new();
+        let own_color = self.board.color_bb(piece.color);
+        let occupied = self.board.occupied();
+        let width = self.board.width();
+        let height = self.board.height();
 
         let offsets = [
             (-2, -1),
@@ -715,13 +734,17 @@ impl<const NW: usize> Game<NW> {
             let dst_col = (src.col as i32 + col_offset) as usize;
             let dst_row = (src.row as i32 + row_offset) as usize;
 
-            if dst_col < self.board.width() && dst_row < self.board.height() {
+            if dst_col < width && dst_row < height {
+                let idx = dst_row * width + dst_col;
+
+                if own_color.get(idx) {
+                    continue;
+                }
+
                 let to = Position::new(dst_col, dst_row);
 
-                if let Some(target) = self.board.get_piece(&to) {
-                    if target.color != piece.color {
-                        moves.push(Move::from_position(*src, to, MoveFlags::CAPTURE));
-                    }
+                if occupied.get(idx) {
+                    moves.push(Move::from_position(*src, to, MoveFlags::CAPTURE));
                 } else {
                     moves.push(Move::from_position(*src, to, MoveFlags::empty()));
                 }
@@ -738,6 +761,10 @@ impl<const NW: usize> Game<NW> {
         directions: &[(i32, i32)],
     ) -> Vec<Move> {
         let mut moves = Vec::new();
+        let occupied = self.board.occupied();
+        let own_color = self.board.color_bb(piece.color);
+        let width = self.board.width();
+        let height = self.board.height();
 
         for (col_dir, row_dir) in directions {
             let mut distance = 1;
@@ -746,18 +773,21 @@ impl<const NW: usize> Game<NW> {
                 let dst_col = (src.col as i32 + col_dir * distance) as usize;
                 let dst_row = (src.row as i32 + row_dir * distance) as usize;
 
-                if dst_col >= self.board.width() || dst_row >= self.board.height() {
+                if dst_col >= width || dst_row >= height {
                     break;
                 }
 
-                let dst_position = Position::new(dst_col, dst_row);
+                let idx = dst_row * width + dst_col;
 
-                if let Some(target) = self.board.get_piece(&dst_position) {
-                    if target.color != piece.color {
+                if occupied.get(idx) {
+                    if !own_color.get(idx) {
+                        let dst_position = Position::new(dst_col, dst_row);
                         moves.push(Move::from_position(*src, dst_position, MoveFlags::CAPTURE));
                     }
+
                     break;
                 } else {
+                    let dst_position = Position::new(dst_col, dst_row);
                     moves.push(Move::from_position(*src, dst_position, MoveFlags::empty()));
                 }
 
@@ -794,10 +824,14 @@ impl<const NW: usize> Game<NW> {
 
     fn generate_psuedo_legal_king_moves(&self, src: &Position, piece: &Piece) -> Vec<Move> {
         let mut moves = Vec::new();
+        let own_color = self.board.color_bb(piece.color);
+        let occupied = self.board.occupied();
+        let width = self.board.width();
+        let height = self.board.height();
 
         // Regular moves
-        for col_offset in -1..=1 {
-            for row_offset in -1..=1 {
+        for col_offset in -1..=1i32 {
+            for row_offset in -1..=1i32 {
                 if col_offset == 0 && row_offset == 0 {
                     continue;
                 }
@@ -805,13 +839,17 @@ impl<const NW: usize> Game<NW> {
                 let dst_col = (src.col as i32 + col_offset) as usize;
                 let dst_row = (src.row as i32 + row_offset) as usize;
 
-                if dst_col < self.board.width() && dst_row < self.board.height() {
+                if dst_col < width && dst_row < height {
+                    let idx = dst_row * width + dst_col;
+
+                    if own_color.get(idx) {
+                        continue;
+                    }
+
                     let dst_position = Position::new(dst_col, dst_row);
 
-                    if let Some(target) = self.board.get_piece(&dst_position) {
-                        if target.color != piece.color {
-                            moves.push(Move::from_position(*src, dst_position, MoveFlags::CAPTURE));
-                        }
+                    if occupied.get(idx) {
+                        moves.push(Move::from_position(*src, dst_position, MoveFlags::CAPTURE));
                     } else {
                         moves.push(Move::from_position(*src, dst_position, MoveFlags::empty()));
                     }
@@ -820,18 +858,14 @@ impl<const NW: usize> Game<NW> {
         }
 
         // Castling (only if enabled and for 8x8 boards)
-        if self.castling_enabled
-            && self.board.width() == 8
-            && self.board.height() == 8
-            && !self.is_in_check(piece.color)
-        {
+        if self.castling_enabled && width == 8 && height == 8 && !self.is_in_check(piece.color) {
             let row = if piece.color == Color::White { 0 } else { 7 };
 
             // Kingside
             if ((piece.color == Color::White && self.castling_rights.white_kingside)
                 || (piece.color == Color::Black && self.castling_rights.black_kingside))
-                && self.board.get_piece(&Position::new(5, row)).is_none()
-                && self.board.get_piece(&Position::new(6, row)).is_none()
+                && !occupied.get(row * 8 + 5)
+                && !occupied.get(row * 8 + 6)
             {
                 // Check if squares are not attacked
                 let mut can_castle = true;
@@ -855,9 +889,9 @@ impl<const NW: usize> Game<NW> {
             // Queenside
             if ((piece.color == Color::White && self.castling_rights.white_queenside)
                 || (piece.color == Color::Black && self.castling_rights.black_queenside))
-                && self.board.get_piece(&Position::new(1, row)).is_none()
-                && self.board.get_piece(&Position::new(2, row)).is_none()
-                && self.board.get_piece(&Position::new(3, row)).is_none()
+                && !occupied.get(row * 8 + 1)
+                && !occupied.get(row * 8 + 2)
+                && !occupied.get(row * 8 + 3)
             {
                 // Check if squares are not attacked
                 let mut can_castle = true;
