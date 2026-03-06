@@ -239,6 +239,18 @@ impl<const NW: usize> Game<NW> {
             return false;
         }
 
+        self.apply_move(mv, &piece);
+        true
+    }
+
+    /// Apply a move that is already known to be legal. Skips legality checking.
+    /// Caller must guarantee the move came from `legal_moves()` or equivalent.
+    pub fn make_move_unchecked(&mut self, mv: &Move) {
+        let piece = self.board.get_piece(&mv.src).expect("no piece at move source");
+        self.apply_move(mv, &piece);
+    }
+
+    fn apply_move(&mut self, mv: &Move, piece: &Piece) {
         // Store state for unmake
         let captured = self.board.get_piece(&mv.dst);
         let old_castling = self.castling_rights;
@@ -253,7 +265,7 @@ impl<const NW: usize> Game<NW> {
             let promo_piece = Piece::new(mv.promotion.unwrap_or(PieceType::Queen), piece.color);
             self.board.set_piece(&mv.dst, Some(promo_piece));
         } else {
-            self.board.set_piece(&mv.dst, Some(piece));
+            self.board.set_piece(&mv.dst, Some(*piece));
         }
 
         // Update king position if a king moved
@@ -293,7 +305,7 @@ impl<const NW: usize> Game<NW> {
         }
 
         // Update castling rights
-        self.update_castling_rights(mv, &piece);
+        self.update_castling_rights(mv, piece);
 
         // Update en passant square
         self.en_passant = None;
@@ -326,8 +338,6 @@ impl<const NW: usize> Game<NW> {
 
         // Switch turns (always, even if the game is over)
         self.turn = self.turn.opposite();
-
-        true
     }
 
     pub fn unmake_move(&mut self) -> bool {

@@ -13,7 +13,7 @@ fn play_random_game() -> spooky_chess::outcome::GameOutcome {
 
         let moves = game.legal_moves();
         let mv = moves.choose(&mut rng).unwrap();
-        game.make_move(mv);
+        game.make_move_unchecked(mv);
     }
 }
 

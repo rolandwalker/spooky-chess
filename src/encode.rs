@@ -62,7 +62,7 @@ pub fn encode_game_planes<const NW: usize>(game: &mut Game<NW>) -> (Vec<f32>, us
 
     // Replay saved moves to restore game state
     for mv in &moves_to_replay {
-        game.make_move(mv);
+        game.make_move_unchecked(mv);
     }
 
     // Constant planes start at index: HISTORY_LENGTH * PIECE_PLANES
@@ -835,8 +835,7 @@ mod tests {
 
                         // Make a random move
                         let chosen_move = legal_moves.choose(&mut rng).unwrap();
-                        let success = game.make_move(chosen_move);
-                        assert!(success, "Failed to make move {}", chosen_move.to_lan());
+                        game.make_move_unchecked(chosen_move);
 
                         thread_moves_played += 1;
                     }

@@ -295,6 +295,12 @@ mod python_bindings {
             Ok(dispatch_game_mut!(&mut self.inner, g => g.make_move(&move_.move_)))
         }
 
+        /// Apply a move that is already known to be legal. Skips legality checking.
+        /// Caller must guarantee the move came from `legal_moves()` or equivalent.
+        pub fn make_move_unchecked(&mut self, move_: PyMove) {
+            dispatch_game_mut!(&mut self.inner, g => g.make_move_unchecked(&move_.move_))
+        }
+
         pub fn unmake_move(&mut self) -> bool {
             dispatch_game_mut!(&mut self.inner, g => g.unmake_move())
         }
@@ -396,7 +402,8 @@ mod python_bindings {
                 for move_ in g.legal_moves() {
                     if let Some(encoded) = encode::encode_move(&move_, width, height) {
                         if encoded == action {
-                            return g.make_move(&move_);
+                            g.make_move_unchecked(&move_);
+                            return true;
                         }
                     }
                 }

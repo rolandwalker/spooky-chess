@@ -17,7 +17,7 @@ fn setup_midgame() -> StandardGame {
             break;
         }
         let mv = moves.choose(&mut rng).unwrap();
-        game.make_move(mv);
+        game.make_move_unchecked(mv);
     }
     game
 }
@@ -39,7 +39,7 @@ fn bench_make_move(c: &mut Criterion) {
         b.iter_batched(
             || game.clone(),
             |mut g| {
-                black_box(g.make_move(&mv));
+                black_box(g.make_move_unchecked(&mv));
             },
             criterion::BatchSize::SmallInput,
         )
@@ -54,7 +54,7 @@ fn bench_make_unmake(c: &mut Criterion) {
         b.iter_batched(
             || game.clone(),
             |mut g| {
-                g.make_move(&mv);
+                g.make_move_unchecked(&mv);
                 black_box(g.unmake_move());
             },
             criterion::BatchSize::SmallInput,
@@ -93,7 +93,7 @@ fn bench_random_playout(c: &mut Criterion) {
                     break;
                 }
                 let mv = moves.choose(&mut rng).unwrap();
-                game.make_move(mv);
+                game.make_move_unchecked(mv);
             }
             black_box(game.outcome())
         })
@@ -109,7 +109,7 @@ fn bench_self_play_step(c: &mut Criterion) {
                 let moves = g.legal_moves();
                 let _planes = encode_game_planes(&mut g);
                 let mv = moves.first().unwrap();
-                g.make_move(mv);
+                g.make_move_unchecked(mv);
                 black_box(&g);
             },
             criterion::BatchSize::SmallInput,
