@@ -44,6 +44,13 @@ impl<const NW: usize> Bitboard<NW> {
         (self.words[index / 64] >> (index % 64)) & 1 != 0
     }
 
+    /// Return the bit at `index` as a `u64` (0 or 1). Branchless.
+    #[inline]
+    pub fn bit_at(&self, index: usize) -> u64 {
+        debug_assert!(index < NW * 64);
+        (self.words[index / 64] >> (index % 64)) & 1
+    }
+
     /// Set bit `index` to 1.
     #[inline]
     #[hotpath::measure]

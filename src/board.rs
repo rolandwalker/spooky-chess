@@ -141,21 +141,28 @@ impl<const NW: usize> Board<NW> {
 
     #[inline]
     pub fn piece_type_at(&self, index: usize) -> Option<PieceType> {
-        if self.pawns.get(index) {
-            Some(PieceType::Pawn)
-        } else if self.knights.get(index) {
-            Some(PieceType::Knight)
-        } else if self.bishops.get(index) {
-            Some(PieceType::Bishop)
-        } else if self.rooks.get(index) {
-            Some(PieceType::Rook)
-        } else if self.queens.get(index) {
-            Some(PieceType::Queen)
-        } else if self.kings.get(index) {
-            Some(PieceType::King)
-        } else {
-            None
-        }
+        // Branchless: extract one bit from each piece-type bitboard in parallel,
+        // combine into a 6-bit key, and do a single table lookup.
+        let key = self.pawns.bit_at(index)
+            | (self.knights.bit_at(index) << 1)
+            | (self.bishops.bit_at(index) << 2)
+            | (self.rooks.bit_at(index) << 3)
+            | (self.queens.bit_at(index) << 4)
+            | (self.kings.bit_at(index) << 5);
+
+        // Only keys with a single bit set (or 0) are valid on a correct board.
+        const TABLE: [Option<PieceType>; 64] = {
+            let mut t: [Option<PieceType>; 64] = [None; 64];
+            t[1] = Some(PieceType::Pawn);
+            t[2] = Some(PieceType::Knight);
+            t[4] = Some(PieceType::Bishop);
+            t[8] = Some(PieceType::Rook);
+            t[16] = Some(PieceType::Queen);
+            t[32] = Some(PieceType::King);
+            t
+        };
+
+        TABLE[key as usize]
     }
 
     pub fn get_piece(&self, pos: &Position) -> Option<Piece> {
