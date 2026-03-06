@@ -15,10 +15,8 @@ crate-type = ["cdylib", "rlib"]
 pyo3 = { version = "0.26", features = ["extension-module"], optional = true }
 bitflags = "2.4"
 arrayvec = "0.7"
-lazy_static = "1.4"
 rand = "0.10.0"
 paste = "1.0"
-num_cpus = "1.16"
 hotpath = { version = "0.13" }
 
 [features]
