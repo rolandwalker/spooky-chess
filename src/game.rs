@@ -258,15 +258,18 @@ impl<const NW: usize> Game<NW> {
         let old_halfmove = self.halfmove_clock;
 
         // Make the move on the board
-        self.board.set_piece(&mv.src, None);
+        self.board.remove_piece(&mv.src, piece);
+        if let Some(ref cap) = captured {
+            self.board.remove_piece(&mv.dst, cap);
+        }
 
         // Handle promotion
-        if mv.flags.contains(MoveFlags::PROMOTION) {
-            let promo_piece = Piece::new(mv.promotion.unwrap_or(PieceType::Queen), piece.color);
-            self.board.set_piece(&mv.dst, Some(promo_piece));
+        let placed_piece = if mv.flags.contains(MoveFlags::PROMOTION) {
+            Piece::new(mv.promotion.unwrap_or(PieceType::Queen), piece.color)
         } else {
-            self.board.set_piece(&mv.dst, Some(*piece));
-        }
+            *piece
+        };
+        self.board.place_piece(&mv.dst, &placed_piece);
 
         // Update king position if a king moved
         if piece.piece_type == PieceType::King {
@@ -279,11 +282,13 @@ impl<const NW: usize> Game<NW> {
         // Handle en passant capture
         if mv.flags.contains(MoveFlags::EN_PASSANT) {
             let captured_pawn_pos = Position::new(mv.dst.col, mv.src.row);
-            self.board.set_piece(&captured_pawn_pos, None);
+            let ep_piece = Piece::new(PieceType::Pawn, piece.color.opposite());
+            self.board.remove_piece(&captured_pawn_pos, &ep_piece);
         }
 
         // Handle castling
         if mv.flags.contains(MoveFlags::CASTLE) {
+            let rook = Piece::new(PieceType::Rook, piece.color);
             let (rook_from, rook_to) = if mv.dst.col > mv.src.col {
                 // Kingside
                 (
@@ -298,10 +303,8 @@ impl<const NW: usize> Game<NW> {
                 )
             };
 
-            if let Some(rook) = self.board.get_piece(&rook_from) {
-                self.board.set_piece(&rook_from, None);
-                self.board.set_piece(&rook_to, Some(rook));
-            }
+            self.board.remove_piece(&rook_from, &rook);
+            self.board.place_piece(&rook_to, &rook);
         }
 
         // Update castling rights
@@ -351,40 +354,41 @@ impl<const NW: usize> Game<NW> {
             // Switch turn back
             self.turn = self.turn.opposite();
 
-            // Restore piece to original position
-            let piece = self.board.get_piece(&mv.dst);
+            // Remove the piece from its destination
+            let dst_piece = self.board.get_piece(&mv.dst).expect("no piece at move dst during unmake");
+            self.board.remove_piece(&mv.dst, &dst_piece);
 
-            // Handle promotion - restore original pawn
-            if mv.flags.contains(MoveFlags::PROMOTION) {
-                self.board
-                    .set_piece(&mv.src, Some(Piece::new(PieceType::Pawn, self.turn)));
+            // Restore original piece to source
+            let original_piece = if mv.flags.contains(MoveFlags::PROMOTION) {
+                Piece::new(PieceType::Pawn, self.turn)
             } else {
-                self.board.set_piece(&mv.src, piece);
-            }
+                dst_piece
+            };
+            self.board.place_piece(&mv.src, &original_piece);
 
             // Restore king position if a king moved
-            if let Some(piece) = piece {
-                if piece.piece_type == PieceType::King {
-                    match piece.color {
-                        Color::White => self.white_king_pos = mv.src,
-                        Color::Black => self.black_king_pos = mv.src,
-                    }
+            if original_piece.piece_type == PieceType::King {
+                match original_piece.color {
+                    Color::White => self.white_king_pos = mv.src,
+                    Color::Black => self.black_king_pos = mv.src,
                 }
             }
 
-            self.board.set_piece(&mv.dst, captured);
+            // Restore captured piece
+            if let Some(cap) = captured {
+                self.board.place_piece(&mv.dst, &cap);
+            }
 
             // Handle en passant
             if mv.flags.contains(MoveFlags::EN_PASSANT) {
                 let captured_pawn_pos = Position::new(mv.dst.col, mv.src.row);
-                self.board.set_piece(
-                    &captured_pawn_pos,
-                    Some(Piece::new(PieceType::Pawn, self.turn.opposite())),
-                );
+                let ep_piece = Piece::new(PieceType::Pawn, self.turn.opposite());
+                self.board.place_piece(&captured_pawn_pos, &ep_piece);
             }
 
             // Handle castling
             if mv.flags.contains(MoveFlags::CASTLE) {
+                let rook = Piece::new(PieceType::Rook, self.turn);
                 let (rook_from, rook_to) = if mv.dst.col > mv.src.col {
                     // Kingside
                     (
@@ -399,10 +403,8 @@ impl<const NW: usize> Game<NW> {
                     )
                 };
 
-                if let Some(rook) = self.board.get_piece(&rook_to) {
-                    self.board.set_piece(&rook_to, None);
-                    self.board.set_piece(&rook_from, Some(rook));
-                }
+                self.board.remove_piece(&rook_to, &rook);
+                self.board.place_piece(&rook_from, &rook);
             }
 
             // Restore state
