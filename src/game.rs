@@ -482,7 +482,13 @@ impl<const NW: usize> Game<NW> {
         let mut moves = Vec::new();
         let mut pseudo_legal = Vec::new();
 
-        for (pos, piece) in self.board.pieces(self.turn) {
+        let color = self.turn;
+        let width = self.board.width();
+        for idx in self.board.color_bb(color).iter_ones() {
+            let pt = self.board.piece_type_at(idx).unwrap();
+            let pos = Position::from_index(idx, width);
+            let piece = Piece::new(pt, color);
+
             pseudo_legal.clear();
             self.generate_pseudo_legal_moves_for_piece_into(&pos, &piece, &mut pseudo_legal);
 
@@ -556,7 +562,7 @@ impl<const NW: usize> Game<NW> {
     pub fn psuedo_legal_moves(&self) -> Vec<Move> {
         let mut moves = Vec::new();
 
-        for (pos, _piece) in self.board.pieces(self.turn) {
+        for (pos, _piece) in self.board.pieces_iter(self.turn) {
             let piece_moves = self.psuedo_legal_moves_for_position(&pos);
             moves.extend(piece_moves);
         }
@@ -1211,7 +1217,13 @@ impl<const NW: usize> Game<NW> {
 
     fn has_any_legal_move(&mut self) -> bool {
         let mut pseudo_legal = Vec::new();
-        for (pos, piece) in self.board.pieces(self.turn) {
+        let color = self.turn;
+        let width = self.board.width();
+        for idx in self.board.color_bb(color).iter_ones() {
+            let pt = self.board.piece_type_at(idx).unwrap();
+            let pos = Position::from_index(idx, width);
+            let piece = Piece::new(pt, color);
+
             pseudo_legal.clear();
             self.generate_pseudo_legal_moves_for_piece_into(&pos, &piece, &mut pseudo_legal);
             for mv in pseudo_legal.iter() {

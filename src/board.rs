@@ -318,14 +318,16 @@ impl<const NW: usize> Board<NW> {
     }
 
     pub fn pieces(&self, color: Color) -> Vec<(Position, Piece)> {
-        let color_bb = self.color_bb(color);
-        let mut result = Vec::new();
-        for idx in color_bb.iter_ones() {
-            let pt = self.piece_type_at(idx).unwrap();
-            let pos = Position::from_index(idx, self.width);
-            result.push((pos, Piece::new(pt, color)));
+        self.pieces_iter(color).collect()
+    }
+
+    #[inline]
+    pub fn pieces_iter(&self, color: Color) -> PieceIterator<'_, NW> {
+        PieceIterator {
+            board: self,
+            color,
+            bit_iter: self.color_bb(color).iter_ones(),
         }
-        result
     }
 
     pub fn find_king(&self, color: Color) -> Option<Position> {
@@ -333,6 +335,24 @@ impl<const NW: usize> Board<NW> {
         king_bb
             .lowest_bit_index()
             .map(|idx| Position::from_index(idx, self.width))
+    }
+}
+
+pub struct PieceIterator<'a, const NW: usize> {
+    board: &'a Board<NW>,
+    color: Color,
+    bit_iter: crate::bitboard::BitIterator<NW>,
+}
+
+impl<'a, const NW: usize> Iterator for PieceIterator<'a, NW> {
+    type Item = (Position, Piece);
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let idx = self.bit_iter.next()?;
+        let pt = self.board.piece_type_at(idx).unwrap();
+        let pos = Position::from_index(idx, self.board.width);
+        Some((pos, Piece::new(pt, self.color)))
     }
 }
 
