@@ -246,7 +246,10 @@ impl<const NW: usize> Game<NW> {
     /// Apply a move that is already known to be legal. Skips legality checking.
     /// Caller must guarantee the move came from `legal_moves()` or equivalent.
     pub fn make_move_unchecked(&mut self, mv: &Move) {
-        let piece = self.board.get_piece(&mv.src).expect("no piece at move source");
+        let piece = self
+            .board
+            .get_piece(&mv.src)
+            .expect("no piece at move source");
         self.apply_move(mv, &piece);
     }
 
@@ -355,7 +358,10 @@ impl<const NW: usize> Game<NW> {
             self.turn = self.turn.opposite();
 
             // Remove the piece from its destination
-            let dst_piece = self.board.get_piece(&mv.dst).expect("no piece at move dst during unmake");
+            let dst_piece = self
+                .board
+                .get_piece(&mv.dst)
+                .expect("no piece at move dst during unmake");
             self.board.remove_piece(&mv.dst, &dst_piece);
 
             // Restore original piece to source
@@ -492,8 +498,17 @@ impl<const NW: usize> Game<NW> {
             pseudo_legal.clear();
             self.generate_pseudo_legal_moves_for_piece_into(&pos, &piece, &mut pseudo_legal);
 
+            let opponent = color.opposite();
             for mv in pseudo_legal.iter() {
-                let captured = self.board.get_piece(&mv.dst);
+                let captured = if mv.flags.contains(MoveFlags::CAPTURE)
+                    && !mv.flags.contains(MoveFlags::EN_PASSANT)
+                {
+                    let dst_idx = mv.dst.row * width + mv.dst.col;
+                    let pt = self.board.piece_type_at(dst_idx).unwrap();
+                    Some(Piece::new(pt, opponent))
+                } else {
+                    None
+                };
 
                 // Make the move on the board
                 self.board.remove_piece(&mv.src, &piece);
@@ -525,7 +540,7 @@ impl<const NW: usize> Game<NW> {
                 // Handle en passant capture
                 let ep_captured = if mv.flags.contains(MoveFlags::EN_PASSANT) {
                     let ep_pos = Position::new(mv.dst.col, mv.src.row);
-                    let ep_piece = Piece::new(PieceType::Pawn, piece.color.opposite());
+                    let ep_piece = Piece::new(PieceType::Pawn, opponent);
                     self.board.remove_piece(&ep_pos, &ep_piece);
                     Some((ep_pos, ep_piece))
                 } else {
@@ -581,9 +596,20 @@ impl<const NW: usize> Game<NW> {
             let mut pseudo_legal = Vec::new();
             self.generate_pseudo_legal_moves_for_piece_into(src, &piece, &mut pseudo_legal);
 
+            let width = self.board.width();
+            let opponent = piece.color.opposite();
+
             // Filter out moves that leave king in check using in-place make/unmake
             for mv in pseudo_legal {
-                let captured = self.board.get_piece(&mv.dst);
+                let captured = if mv.flags.contains(MoveFlags::CAPTURE)
+                    && !mv.flags.contains(MoveFlags::EN_PASSANT)
+                {
+                    let dst_idx = mv.dst.row * width + mv.dst.col;
+                    let pt = self.board.piece_type_at(dst_idx).unwrap();
+                    Some(Piece::new(pt, opponent))
+                } else {
+                    None
+                };
 
                 // Make the move on the board
                 self.board.remove_piece(&mv.src, &piece);
@@ -615,7 +641,7 @@ impl<const NW: usize> Game<NW> {
                 // Handle en passant capture
                 let ep_captured = if mv.flags.contains(MoveFlags::EN_PASSANT) {
                     let ep_pos = Position::new(mv.dst.col, mv.src.row);
-                    let ep_piece = Piece::new(PieceType::Pawn, piece.color.opposite());
+                    let ep_piece = Piece::new(PieceType::Pawn, opponent);
                     self.board.remove_piece(&ep_pos, &ep_piece);
                     Some((ep_pos, ep_piece))
                 } else {
@@ -1226,8 +1252,17 @@ impl<const NW: usize> Game<NW> {
 
             pseudo_legal.clear();
             self.generate_pseudo_legal_moves_for_piece_into(&pos, &piece, &mut pseudo_legal);
+            let opponent = color.opposite();
             for mv in pseudo_legal.iter() {
-                let captured = self.board.get_piece(&mv.dst);
+                let captured = if mv.flags.contains(MoveFlags::CAPTURE)
+                    && !mv.flags.contains(MoveFlags::EN_PASSANT)
+                {
+                    let dst_idx = mv.dst.row * width + mv.dst.col;
+                    let pt = self.board.piece_type_at(dst_idx).unwrap();
+                    Some(Piece::new(pt, opponent))
+                } else {
+                    None
+                };
 
                 // Make the move
                 self.board.remove_piece(&mv.src, &piece);
