@@ -370,25 +370,13 @@ mod python_bindings {
                 let height = g.board().height();
                 g.legal_moves()
                     .into_iter()
-                    .filter_map(|m| encode::encode_move(&m, width, height))
+                    .filter_map(|m| encode::encode_action(&m, width, height))
                     .collect()
             })
         }
 
         pub fn apply_action(&mut self, action: usize) -> bool {
-            dispatch_game!(&mut self.inner, g => {
-                let width = g.board().width();
-                let height = g.board().height();
-                for move_ in g.legal_moves() {
-                    if let Some(encoded) = encode::encode_move(&move_, width, height) {
-                        if encoded == action {
-                            g.make_move_unchecked(&move_);
-                            return true;
-                        }
-                    }
-                }
-                false
-            })
+            dispatch_game!(&mut self.inner, g => g.apply_action(action))
         }
 
         // ---------------------------------------------------------------------
@@ -399,29 +387,21 @@ mod python_bindings {
             dispatch_game!(&mut self.inner, g => encode::encode_game_planes(g))
         }
 
-        #[staticmethod]
-        pub fn get_move_planes_count(width: usize, height: usize) -> usize {
-            encode::get_move_planes_count(width, height)
+        pub fn action_planes_count(&self) -> usize {
+            dispatch_game!(&self.inner, g => {
+                encode::get_move_planes_count(g.board().width(), g.board().height())
+            })
         }
 
-        pub fn decode_action(&mut self, action: usize) -> Option<PyMove> {
-            dispatch_game!(&mut self.inner, g => {
-                let width = g.board().width();
-                let height = g.board().height();
-                for move_ in g.legal_moves() {
-                    if let Some(encoded) = encode::encode_move(&move_, width, height) {
-                        if encoded == action {
-                            return Some(PyMove { move_ });
-                        }
-                    }
-                }
-                None
+        pub fn decode_action(&self, action: usize) -> Option<PyMove> {
+            dispatch_game!(&self.inner, g => {
+                g.decode_action(action).map(|m| PyMove { move_: m })
             })
         }
 
         pub fn total_actions(&self) -> usize {
             dispatch_game!(&self.inner, g => {
-                encode::get_move_planes_count(g.board().width(), g.board().height())
+                encode::get_total_actions(g.board().width(), g.board().height())
             })
         }
 
@@ -598,19 +578,7 @@ mod python_bindings {
         // ---------------------------------------------------------------------
 
         pub fn encode(&self, width: usize, height: usize) -> Option<usize> {
-            encode::encode_move(&self.move_, width, height)
-        }
-
-        #[staticmethod]
-        pub fn decode_from_plane(
-            plane_idx: usize,
-            src_col: usize,
-            src_row: usize,
-            width: usize,
-            height: usize,
-        ) -> Option<Self> {
-            encode::decode_move_from_plane(plane_idx, src_col, src_row, width, height)
-                .map(|move_| PyMove { move_ })
+            encode::encode_action(&self.move_, width, height)
         }
 
         // ---------------------------------------------------------------------

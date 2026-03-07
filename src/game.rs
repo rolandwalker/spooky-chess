@@ -1392,6 +1392,97 @@ impl StandardGame {
     }
 }
 
+// -------------------------------------------------------------------------
+// Action encoding/decoding
+// -------------------------------------------------------------------------
+
+impl<const NW: usize> Game<NW> {
+    /// Decode a full action index into a Move, inferring flags from board state.
+    pub fn decode_action(&self, action: usize) -> Option<Move> {
+        let width = self.board.width();
+        let height = self.board.height();
+        let board_size = width * height;
+
+        let plane_idx = action / board_size;
+        let src_index = action % board_size;
+        let src_col = src_index % width;
+        let src_row = src_index / width;
+
+        let (dx, dy, promo) = crate::encode::decode_move_plane(plane_idx, width, height)?;
+
+        let dst_col_i = src_col as i32 + dx;
+        let dst_row_i = src_row as i32 + dy;
+        if dst_col_i < 0 || dst_row_i < 0 {
+            return None;
+        }
+        let (dst_col, dst_row) = (dst_col_i as usize, dst_row_i as usize);
+        if dst_col >= width || dst_row >= height {
+            return None;
+        }
+
+        let src = Position::new(src_col, src_row);
+        let dst = Position::new(dst_col, dst_row);
+        let piece = self.board.get_piece(&src)?;
+
+        // Infer flags from board state
+        let mut flags = MoveFlags::empty();
+
+        if self.board.get_piece(&dst).is_some() {
+            flags |= MoveFlags::CAPTURE;
+        }
+
+        if piece.piece_type == PieceType::King
+            && (dst.col as i32 - src.col as i32).abs() == 2 {
+                flags |= MoveFlags::CASTLE;
+            }
+
+        if piece.piece_type == PieceType::Pawn {
+            if let Some(ep_square) = self.en_passant {
+                if dst == ep_square {
+                    flags |= MoveFlags::CAPTURE | MoveFlags::EN_PASSANT;
+                }
+            }
+            if (dst.row as i32 - src.row as i32).abs() == 2 {
+                flags |= MoveFlags::DOUBLE_PUSH;
+            }
+        }
+
+        // Promotion
+        let promotion = if let Some(promo_piece) = promo {
+            flags |= MoveFlags::PROMOTION;
+            Some(promo_piece)
+        } else if piece.piece_type == PieceType::Pawn && (dst_row == 0 || dst_row == height - 1) {
+            flags |= MoveFlags::PROMOTION;
+            Some(PieceType::Queen)
+        } else {
+            None
+        };
+
+        Some(Move {
+            src,
+            dst,
+            flags,
+            promotion,
+        })
+    }
+
+    /// Apply an action index to the game
+    /// Returns false if the action is invalid (no piece at source, off-board, etc.).
+    pub fn apply_action(&mut self, action: usize) -> bool {
+        let mv = match self.decode_action(action) {
+            Some(mv) => mv,
+            None => return false,
+        };
+        self.make_move_unchecked(&mv);
+        true
+    }
+
+    /// Encode a move as a full action index. Convenience wrapper.
+    pub fn encode_action(&self, mv: &Move) -> Option<usize> {
+        crate::encode::encode_action(mv, self.board.width(), self.board.height())
+    }
+}
+
 #[hotpath::measure_all]
 impl<const NW: usize> std::fmt::Display for Game<NW> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -1852,5 +1943,80 @@ mod tests {
         // Should lose queenside castling only
         assert!(game.castling_rights().has_kingside(Color::White));
         assert!(!game.castling_rights().has_queenside(Color::White));
+    }
+
+    #[test]
+    fn test_encode_decode_action_roundtrip() {
+        use rand::prelude::IndexedRandom;
+        use rand::SeedableRng;
+
+        let mut rng = rand::rngs::StdRng::seed_from_u64(42);
+
+        for _game_num in 0..500 {
+            let mut game = StdGame::standard();
+            for _move_num in 0..200 {
+                if game.is_over() {
+                    break;
+                }
+                let legal_moves = game.legal_moves();
+                if legal_moves.is_empty() {
+                    break;
+                }
+
+                for mv in &legal_moves {
+                    let action = game.encode_action(mv).expect("Failed to encode action");
+                    let decoded = game.decode_action(action).expect("Failed to decode action");
+
+                    assert_eq!(
+                        decoded.src,
+                        mv.src,
+                        "src mismatch for move {} (action {})",
+                        mv.to_lan(),
+                        action
+                    );
+                    assert_eq!(
+                        decoded.dst,
+                        mv.dst,
+                        "dst mismatch for move {} (action {})",
+                        mv.to_lan(),
+                        action
+                    );
+                    assert_eq!(
+                        decoded.promotion,
+                        mv.promotion,
+                        "promotion mismatch for move {} (action {})",
+                        mv.to_lan(),
+                        action
+                    );
+                }
+
+                let chosen = legal_moves.choose(&mut rng).unwrap();
+                game.make_move_unchecked(chosen);
+            }
+        }
+    }
+
+    #[test]
+    fn test_apply_action_roundtrip() {
+        let mut game = StdGame::standard();
+        // e2e4 as an action
+        let mv = game.move_from_lan("e2e4").unwrap();
+        let action = game.encode_action(&mv).unwrap();
+        assert!(game.apply_action(action));
+        assert_eq!(game.turn(), Color::Black);
+
+        // Verify the pawn moved
+        assert!(game.board().get_piece(&Position::new(4, 1)).is_none());
+        assert!(game.board().get_piece(&Position::new(4, 3)).is_some());
+    }
+
+    #[test]
+    fn test_total_actions_standard() {
+        let game = StdGame::standard();
+        // 82 planes * 64 squares = 5248
+        assert_eq!(
+            crate::encode::get_total_actions(game.board().width(), game.board().height()),
+            5248
+        );
     }
 }
