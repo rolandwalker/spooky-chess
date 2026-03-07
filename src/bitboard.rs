@@ -653,19 +653,6 @@ mod tests {
     }
 
     #[test]
-    fn test_neighbors_matches_expected() {
-        // Verify neighbors produces correct results for all board sizes
-        for &(w, h) in &[(5u8, 5u8), (8, 8), (9, 9), (13, 7), (19, 19)] {
-            test_neighbors_for_board::<{ nw_for_board(5, 5) }>(w, h);
-        }
-        // We need to call with the right NW for each board size
-    }
-
-    fn test_neighbors_for_board<const NW: usize>(_w: u8, _h: u8) {
-        // This test is now split per board size below
-    }
-
-    #[test]
     fn test_neighbors_all_boards() {
         check_all_neighbors::<{ nw_for_board(5, 5) }>(5, 5);
         check_all_neighbors::<{ nw_for_board(8, 8) }>(8, 8);

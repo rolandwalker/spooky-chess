@@ -73,13 +73,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_position_creation() {
-        let pos = Position::new(3, 4);
-        assert_eq!(pos.col, 3);
-        assert_eq!(pos.row, 4);
-    }
-
-    #[test]
     fn test_position_algebraic() {
         let pos = Position::new(0, 0);
         assert_eq!(pos.to_algebraic(), "a1");

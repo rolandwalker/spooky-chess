@@ -1,0 +1,258 @@
+use arrayvec::ArrayVec;
+
+use crate::bitboard::nw_for_board;
+use crate::board::{Board, STANDARD_COLS, STANDARD_ROWS};
+use crate::color::Color;
+use crate::pieces::Piece;
+use crate::position::Position;
+use crate::r#move::Move;
+
+mod action;
+mod make_move;
+mod movegen;
+mod state;
+
+#[cfg(test)]
+mod tests;
+
+#[derive(Clone)]
+pub struct MoveHistoryEntry {
+    pub mv: Move,
+    captured: Option<Piece>,
+    castling_rights: CastlingRights,
+    en_passant: Option<Position>,
+    halfmove_clock: u32,
+}
+
+#[derive(Clone)]
+pub struct Game<const NW: usize> {
+    board: Board<NW>,
+    turn: Color,
+    move_history: Vec<MoveHistoryEntry>,
+
+    castling_rights: CastlingRights,
+    castling_enabled: bool,
+
+    en_passant: Option<Position>,
+
+    halfmove_clock: u32,
+    fullmove_number: u32,
+
+    white_king_pos: Position,
+    black_king_pos: Position,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct CastlingRights {
+    white_kingside: bool,
+    white_queenside: bool,
+    black_kingside: bool,
+    black_queenside: bool,
+}
+
+#[hotpath::measure_all]
+impl Default for CastlingRights {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[hotpath::measure_all]
+impl CastlingRights {
+    pub fn new() -> Self {
+        CastlingRights {
+            white_kingside: true,
+            white_queenside: true,
+            black_kingside: true,
+            black_queenside: true,
+        }
+    }
+
+    pub fn none() -> Self {
+        CastlingRights {
+            white_kingside: false,
+            white_queenside: false,
+            black_kingside: false,
+            black_queenside: false,
+        }
+    }
+
+    pub fn has_kingside(&self, color: Color) -> bool {
+        match color {
+            Color::White => self.white_kingside,
+            Color::Black => self.black_kingside,
+        }
+    }
+
+    pub fn has_queenside(&self, color: Color) -> bool {
+        match color {
+            Color::White => self.white_queenside,
+            Color::Black => self.black_queenside,
+        }
+    }
+}
+
+#[hotpath::measure_all]
+impl<const NW: usize> Game<NW> {
+    pub fn new(
+        width: usize,
+        height: usize,
+        fen: &str,
+        castling_enabled: bool,
+    ) -> Result<Self, String> {
+        let parts: ArrayVec<&str, 6> = fen.split(' ').collect();
+
+        if parts.is_empty() {
+            return Err("Empty FEN string".to_string());
+        }
+
+        // FEN must have exactly 6 parts: position, turn, castling, en_passant, halfmove, fullmove
+        if parts.len() != 6 {
+            return Err(format!(
+                "Invalid FEN: expected 6 parts, got {}",
+                parts.len()
+            ));
+        }
+
+        let board = Board::new(width, height, parts[0])?;
+
+        // Turn
+        let turn = match parts[1] {
+            "w" => Color::White,
+            "b" => Color::Black,
+            _ => return Err("Invalid turn in FEN".to_string()),
+        };
+
+        // Castling rights
+        let mut castling_rights = CastlingRights::none();
+        if castling_enabled {
+            for c in parts[2].chars() {
+                match c {
+                    'K' => castling_rights.white_kingside = true,
+                    'Q' => castling_rights.white_queenside = true,
+                    'k' => castling_rights.black_kingside = true,
+                    'q' => castling_rights.black_queenside = true,
+                    '-' => {}
+                    _ => return Err("Invalid castling rights in FEN".to_string()),
+                }
+            }
+        }
+
+        // En passant
+        let en_passant = if parts[3] != "-" {
+            Some(Position::from_algebraic(parts[3])?)
+        } else {
+            None
+        };
+
+        // Halfmove clock
+        let halfmove_clock = parts[4]
+            .parse()
+            .map_err(|_| "Invalid halfmove clock in FEN".to_string())?;
+
+        // Fullmove number
+        let fullmove_number = parts[5]
+            .parse()
+            .map_err(|_| "Invalid fullmove number in FEN".to_string())?;
+
+        // Find king positions
+        let white_king_pos = board
+            .find_king(Color::White)
+            .ok_or("No white king found in FEN position".to_string())?;
+        let black_king_pos = board
+            .find_king(Color::Black)
+            .ok_or("No black king found in FEN position".to_string())?;
+
+        Ok(Game {
+            board,
+            turn,
+            move_history: Vec::new(),
+            castling_rights,
+            castling_enabled,
+            en_passant,
+            halfmove_clock,
+            fullmove_number,
+            white_king_pos,
+            black_king_pos,
+        })
+    }
+
+    pub fn width(&self) -> usize {
+        self.board.width()
+    }
+
+    pub fn height(&self) -> usize {
+        self.board.height()
+    }
+
+    pub fn get_piece(&self, pos: &Position) -> Option<Piece> {
+        self.board.get_piece(pos)
+    }
+
+    pub fn set_piece(&mut self, pos: &Position, piece: Option<Piece>) {
+        self.board.set_piece(pos, piece)
+    }
+
+    pub fn board(&self) -> &Board<NW> {
+        &self.board
+    }
+
+    pub fn board_mut(&mut self) -> &mut Board<NW> {
+        &mut self.board
+    }
+
+    pub fn turn(&self) -> Color {
+        self.turn
+    }
+
+    pub fn fullmove_number(&self) -> u32 {
+        self.fullmove_number
+    }
+
+    pub fn halfmove_clock(&self) -> u32 {
+        self.halfmove_clock
+    }
+
+    pub fn move_count(&self) -> usize {
+        self.move_history.len()
+    }
+
+    pub fn move_history(&self) -> &[MoveHistoryEntry] {
+        &self.move_history
+    }
+
+    pub fn castling_enabled(&self) -> bool {
+        self.castling_enabled
+    }
+
+    pub fn castling_rights(&self) -> &CastlingRights {
+        &self.castling_rights
+    }
+
+    pub fn board_clear(&mut self) {
+        self.board.clear();
+    }
+}
+
+/// Type alias for a standard 8x8 game
+pub type StandardGame = Game<{ nw_for_board(STANDARD_COLS as u8, STANDARD_ROWS as u8) }>;
+
+#[hotpath::measure_all]
+impl StandardGame {
+    pub fn standard() -> Self {
+        Self::new(
+            8,
+            8,
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            true,
+        )
+        .expect("Failed to create standard game")
+    }
+}
+
+#[hotpath::measure_all]
+impl<const NW: usize> std::fmt::Display for Game<NW> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Game(current_player: {})\n{}", self.turn(), self.board)
+    }
+}

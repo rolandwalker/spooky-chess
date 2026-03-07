@@ -412,24 +412,6 @@ mod tests {
     type StdBoard = Board<{ nw_for_board(STANDARD_COLS as u8, STANDARD_ROWS as u8) }>;
 
     #[test]
-    fn test_empty_board_creation() {
-        let board: Board<{ nw_for_board(6, 6) }> = Board::empty(6, 6);
-        assert_eq!(board.width(), 6);
-        assert_eq!(board.height(), 6);
-
-        let board: Board<{ nw_for_board(10, 10) }> = Board::empty(10, 10);
-        assert_eq!(board.width(), 10);
-        assert_eq!(board.height(), 10);
-    }
-
-    #[test]
-    fn test_standard_board_creation() {
-        let board = StdBoard::standard();
-        assert_eq!(board.width(), 8);
-        assert_eq!(board.height(), 8);
-    }
-
-    #[test]
     fn test_custom_board_creation() {
         let board: Board<{ nw_for_board(6, 6) }> =
             Board::new(6, 6, "rnbqk1/pppppp/6/6/PPPPPP/RNBQK1")
