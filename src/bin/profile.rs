@@ -1,10 +1,11 @@
+use rand::rngs::SmallRng;
 use rand::seq::IndexedRandom;
+use rand::SeedableRng;
 use spooky_chess::game::Game;
 
 #[hotpath::measure]
-fn play_random_game() -> spooky_chess::outcome::GameOutcome {
+fn play_random_game(rng: &mut SmallRng) -> spooky_chess::outcome::GameOutcome {
     let mut game = Game::<1>::standard();
-    let mut rng = rand::rng();
 
     loop {
         if let Some(outcome) = game.outcome() {
@@ -12,29 +13,27 @@ fn play_random_game() -> spooky_chess::outcome::GameOutcome {
         }
 
         let moves = game.legal_moves();
-        let mv = moves.choose(&mut rng).unwrap();
+        let mv = moves.choose(rng).unwrap();
         game.make_move_unchecked(mv);
     }
 }
 
 #[hotpath::main(limit = 0)]
 fn main() {
-    let num_games = 50;
+    let num_games = 200;
     let mut white_wins = 0;
     let mut black_wins = 0;
     let mut draws = 0;
 
-    for i in 0..num_games {
-        let outcome = play_random_game();
+    let mut rng = SmallRng::seed_from_u64(0xDEAD_BEEF);
+
+    for _i in 0..num_games {
+        let outcome = play_random_game(&mut rng);
 
         match outcome.winner() {
             Some(spooky_chess::color::Color::White) => white_wins += 1,
             Some(spooky_chess::color::Color::Black) => black_wins += 1,
             None => draws += 1,
-        }
-
-        if (i + 1) % 10 == 0 {
-            println!("Played {}/{} games", i + 1, num_games);
         }
     }
 
