@@ -1,5 +1,6 @@
 use crate::color::Color;
-use crate::pieces::{Piece, PieceType, KNIGHT_DELTAS};
+use crate::directions::{ALL_DIRS, DIAGONAL, KNIGHT_MOVES, ORTHOGONAL};
+use crate::pieces::{Piece, PieceType};
 use crate::position::Position;
 use crate::r#move::{Move, MoveFlags};
 
@@ -302,7 +303,7 @@ impl<const NW: usize> Game<NW> {
         let width = self.board.width();
         let height = self.board.height();
 
-        for (col_offset, row_offset) in &KNIGHT_DELTAS {
+        for (col_offset, row_offset) in &KNIGHT_MOVES {
             let dst_col = (src.col as i32 + col_offset) as usize;
             let dst_row = (src.row as i32 + row_offset) as usize;
 
@@ -372,8 +373,7 @@ impl<const NW: usize> Game<NW> {
         piece: &Piece,
         moves: &mut Vec<Move>,
     ) {
-        let directions = [(1, 1), (1, -1), (-1, 1), (-1, -1)];
-        self.generate_sliding_moves_into(src, piece, &directions, moves)
+        self.generate_sliding_moves_into(src, piece, &DIAGONAL, moves)
     }
 
     fn generate_pseudo_legal_rook_moves_into(
@@ -382,8 +382,7 @@ impl<const NW: usize> Game<NW> {
         piece: &Piece,
         moves: &mut Vec<Move>,
     ) {
-        let directions = [(0, 1), (0, -1), (1, 0), (-1, 0)];
-        self.generate_sliding_moves_into(src, piece, &directions, moves)
+        self.generate_sliding_moves_into(src, piece, &ORTHOGONAL, moves)
     }
 
     fn generate_pseudo_legal_queen_moves_into(
@@ -392,17 +391,7 @@ impl<const NW: usize> Game<NW> {
         piece: &Piece,
         moves: &mut Vec<Move>,
     ) {
-        let directions = [
-            (0, 1),
-            (0, -1),
-            (1, 0),
-            (-1, 0),
-            (1, 1),
-            (1, -1),
-            (-1, 1),
-            (-1, -1),
-        ];
-        self.generate_sliding_moves_into(src, piece, &directions, moves)
+        self.generate_sliding_moves_into(src, piece, &ALL_DIRS, moves)
     }
 
     fn generate_pseudo_legal_king_moves_into(

@@ -1,7 +1,7 @@
 use crate::color::Color;
+use crate::directions::{direction_index, KNIGHT_MOVES};
 use crate::game::Game;
-use crate::pieces::{PieceType, KNIGHT_DELTAS};
-use crate::position::Position;
+use crate::pieces::PieceType;
 use crate::r#move::Move;
 
 /// Number of planes for piece positions (6 for WHITE + 6 for BLACK)
@@ -198,7 +198,7 @@ pub(crate) fn encode_move_plane(move_: &Move, width: usize, height: usize) -> Op
     let max_distance = width.max(height) - 1;
 
     // L-shaped moves for knights
-    for (i, &(kdx, kdy)) in KNIGHT_DELTAS.iter().enumerate() {
+    for (i, &(kdx, kdy)) in KNIGHT_MOVES.iter().enumerate() {
         if dx == kdx && dy == kdy {
             let knight_planes_start = NUM_DIRECTIONS * max_distance;
             return Some(knight_planes_start + i);
@@ -244,22 +244,12 @@ pub(crate) fn encode_move_plane(move_: &Move, width: usize, height: usize) -> Op
     }
 
     // Horizontal/vertical/diagonal moves for all non-knight pieces
-    let direction = if dx == 0 && dy > 0 {
-        Some(0) // North
-    } else if dx > 0 && dy > 0 && dx == dy {
-        Some(1) // NE
-    } else if dx > 0 && dy == 0 {
-        Some(2) // East
-    } else if dx > 0 && dy < 0 && dx == -dy {
-        Some(3) // SE
-    } else if dx == 0 && dy < 0 {
-        Some(4) // South
-    } else if dx < 0 && dy < 0 && dx == dy {
-        Some(5) // SW
-    } else if dx < 0 && dy == 0 {
-        Some(6) // West
-    } else if dx < 0 && dy > 0 && -dx == dy {
-        Some(7) // NW
+    // Verify it's actually a straight/diagonal move (not an arbitrary direction)
+    let is_straight_or_diagonal = (dx == 0) != (dy == 0)  // straight
+        || (dx.abs() == dy.abs() && dx != 0); // diagonal
+
+    let direction = if is_straight_or_diagonal {
+        direction_index(dx, dy)
     } else {
         None
     };
@@ -308,9 +298,7 @@ pub(crate) fn decode_move_plane(
     } else if plane_idx < underpromo_planes_start {
         // L-shaped moves for knights
         let knight_idx = plane_idx - knight_planes_start;
-        KNIGHT_DELTAS
-            .get(knight_idx)
-            .map(|&(dx, dy)| (dx, dy, None))
+        KNIGHT_MOVES.get(knight_idx).map(|&(dx, dy)| (dx, dy, None))
     } else {
         // Underpromotion
         let underpromo_idx = plane_idx - underpromo_planes_start;
@@ -360,47 +348,10 @@ pub fn get_move_planes_count(width: usize, height: usize) -> usize {
     straight_diagonal_planes + knight_planes + underpromo_planes
 }
 
-/// Decode a plane index and source position to a Move
-/// Returns the decoded move if valid
-#[hotpath::measure]
-pub(crate) fn decode_move_from_plane(
-    plane_idx: usize,
-    src_col: usize,
-    src_row: usize,
-    width: usize,
-    height: usize,
-) -> Option<Move> {
-    let (dx, dy, promo) = decode_move_plane(plane_idx, width, height)?;
-
-    // Calculate destination
-    let dst_col = (src_col as i32 + dx) as usize;
-    let dst_row = (src_row as i32 + dy) as usize;
-
-    // Check bounds
-    if dst_col >= width || dst_row >= height {
-        return None;
-    }
-
-    let src = Position::new(src_col, src_row);
-    let dst = Position::new(dst_col, dst_row);
-
-    use crate::r#move::MoveFlags;
-
-    if let Some(promo_piece) = promo {
-        Some(Move::from_position_with_promotion(
-            src,
-            dst,
-            MoveFlags::PROMOTION,
-            promo_piece,
-        ))
-    } else {
-        Some(Move::from_position(src, dst, MoveFlags::empty()))
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::position::Position;
 
     fn get_plane_value(
         data: &[f32],
@@ -659,54 +610,6 @@ mod tests {
 
         // For 6x6 board: 66 * 36 = 2376
         assert_eq!(get_total_actions(6, 6), 2376);
-    }
-
-    #[test]
-    fn test_decode_move_from_plane() {
-        // Test straight move (north)
-        let plane_idx = 3; // North, distance 4
-        let decoded = decode_move_from_plane(plane_idx, 3, 0, 8, 8).unwrap();
-        assert_eq!(decoded.src.col, 3);
-        assert_eq!(decoded.src.row, 0);
-        assert_eq!(decoded.dst.col, 3);
-        assert_eq!(decoded.dst.row, 4);
-
-        // Test knight move
-        let plane_idx = 8 * 7; // First knight pattern (1, 2)
-        let decoded = decode_move_from_plane(plane_idx, 3, 3, 8, 8).unwrap();
-        assert_eq!(decoded.src.col, 3);
-        assert_eq!(decoded.src.row, 3);
-        assert_eq!(decoded.dst.col, 4);
-        assert_eq!(decoded.dst.row, 5);
-
-        // Test out of bounds
-        let plane_idx = 3; // North, distance 4
-        let decoded = decode_move_from_plane(plane_idx, 3, 7, 8, 8); // Would go off board
-        assert!(decoded.is_none());
-    }
-
-    #[test]
-    fn test_encode_decode_roundtrip_from_plane() {
-        use crate::r#move::MoveFlags;
-
-        let test_moves = vec![
-            (Position::new(0, 0), Position::new(0, 5)),
-            (Position::new(2, 2), Position::new(5, 5)),
-            (Position::new(3, 3), Position::new(4, 5)), // Knight move
-        ];
-
-        for (src, dst) in test_moves {
-            let original_move = Move::from_position(src, dst, MoveFlags::empty());
-            let encoded = encode_move_plane(&original_move, 8, 8).expect("Failed to encode");
-
-            let decoded =
-                decode_move_from_plane(encoded, src.col, src.row, 8, 8).expect("Failed to decode");
-
-            assert_eq!(decoded.src.col, original_move.src.col);
-            assert_eq!(decoded.src.row, original_move.src.row);
-            assert_eq!(decoded.dst.col, original_move.dst.col);
-            assert_eq!(decoded.dst.row, original_move.dst.row);
-        }
     }
 
     #[test]

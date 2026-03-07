@@ -1,6 +1,7 @@
 use crate::color::Color;
+use crate::directions::{DIAGONAL, KNIGHT_MOVES, ORTHOGONAL};
 use crate::outcome::GameOutcome;
-use crate::pieces::{Piece, PieceType, KNIGHT_DELTAS};
+use crate::pieces::{Piece, PieceType};
 use crate::position::Position;
 use crate::r#move::{Move, MoveFlags};
 
@@ -35,7 +36,7 @@ impl<const NW: usize> Game<NW> {
         // 2. Knight attacks
         let knights = self.board.piece_type_bb(PieceType::Knight) & enemy;
         if !knights.is_empty() {
-            for (col_off, row_off) in KNIGHT_DELTAS {
+            for (col_off, row_off) in KNIGHT_MOVES {
                 let nc = (sq_col + col_off) as usize;
                 let nr = (sq_row + row_off) as usize;
                 if nc < width && nr < height {
@@ -72,7 +73,7 @@ impl<const NW: usize> Game<NW> {
             | self.board.piece_type_bb(PieceType::Queen))
             & enemy;
         if !rooks_queens.is_empty() {
-            for (col_dir, row_dir) in [(0i32, 1i32), (0, -1), (1, 0), (-1, 0)] {
+            for (col_dir, row_dir) in ORTHOGONAL {
                 let mut d = 1;
                 loop {
                     let c = (sq_col + col_dir * d) as usize;
@@ -97,7 +98,7 @@ impl<const NW: usize> Game<NW> {
             | self.board.piece_type_bb(PieceType::Queen))
             & enemy;
         if !bishops_queens.is_empty() {
-            for (col_dir, row_dir) in [(1i32, 1i32), (1, -1), (-1, 1), (-1, -1)] {
+            for (col_dir, row_dir) in DIAGONAL {
                 let mut d = 1;
                 loop {
                     let c = (sq_col + col_dir * d) as usize;
