@@ -479,11 +479,9 @@ impl<const NW: usize> BoardGeometry<NW> {
         // up: row-1 = shift right by width
         let up = bb.shift_right(w);
 
-        // Combine all four directions, then mask to valid positions
         (right | left | down | up) & self.board_mask
     }
 
-    /// Compute all knight attack squares from a source bitboard.
     #[inline]
     pub fn knight_attacks(&self, src: Bitboard<NW>) -> Bitboard<NW> {
         let w = self.width as usize;
@@ -507,6 +505,21 @@ impl<const NW: usize> BoardGeometry<NW> {
         let h = src.shift_right(w + 2) & self.not_col_last_2;
 
         (a | b | c | d | e | f | g | h) & self.board_mask
+    }
+
+    #[inline]
+    pub fn king_attacks(&self, src: Bitboard<NW>) -> Bitboard<NW> {
+        let w = self.width as usize;
+        let n = src.shift_left(w);
+        let s = src.shift_right(w);
+        let e = src.shift_left(1) & self.not_col_first;
+        let w_ = src.shift_right(1) & self.not_col_last;
+        let ne = src.shift_left(w + 1) & self.not_col_first;
+        let nw = src.shift_left(w - 1) & self.not_col_last;
+        let se = src.shift_right(w - 1) & self.not_col_first;
+        let sw = src.shift_right(w + 1) & self.not_col_last;
+
+        (n | s | e | w_ | ne | nw | se | sw) & self.board_mask
     }
 
     /// Flood-fill from `seed` through `mask`. Returns the connected component
@@ -767,6 +780,17 @@ mod tests {
     }
 
     #[test]
+    fn test_andnot() {
+        let a = Bitboard::<1>::single(0) | Bitboard::single(5) | Bitboard::single(10);
+        let b = Bitboard::<1>::single(5) | Bitboard::single(20);
+        let result = a.andnot(b);
+        assert!(result.get(0));
+        assert!(!result.get(5));
+        assert!(result.get(10));
+        assert!(!result.get(20));
+    }
+
+    #[test]
     fn test_non_square_board() {
         let geo = BoardGeometry::<{ nw_for_board(5, 3) }>::new(5, 3);
         assert_eq!(geo.area, 15);
@@ -854,17 +878,6 @@ mod tests {
         assert_eq!(nw_for_board(9, 9), 2); // 81 bits
         assert_eq!(nw_for_board(19, 19), 6); // 361 bits
         assert_eq!(nw_for_board(32, 32), 16); // 1024 bits
-    }
-
-    #[test]
-    fn test_andnot() {
-        let a = Bitboard::<1>::single(0) | Bitboard::single(5) | Bitboard::single(10);
-        let b = Bitboard::<1>::single(5) | Bitboard::single(20);
-        let result = a.andnot(b);
-        assert!(result.get(0));
-        assert!(!result.get(5));
-        assert!(result.get(10));
-        assert!(!result.get(20));
     }
 
     #[test]

@@ -52,20 +52,9 @@ impl<const NW: usize> Game<NW> {
         // 3. King attacks
         let kings = self.board.piece_type_bb(PieceType::King) & enemy;
         if !kings.is_empty() {
-            for col_off in -1..=1i32 {
-                for row_off in -1..=1i32 {
-                    if col_off == 0 && row_off == 0 {
-                        continue;
-                    }
-                    let kc = (sq_col + col_off) as usize;
-                    let kr = (sq_row + row_off) as usize;
-                    if kc < width && kr < height {
-                        let idx = kr * width + kc;
-                        if kings.get(idx) {
-                            return true;
-                        }
-                    }
-                }
+            let sq_bb = Bitboard::single(square.to_index(width));
+            if !(self.geometry.king_attacks(sq_bb) & kings).is_empty() {
+                return true;
             }
         }
 

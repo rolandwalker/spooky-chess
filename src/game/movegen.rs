@@ -385,34 +385,19 @@ impl<const NW: usize> Game<NW> {
         let own_color = self.board.color_bb(piece.color);
         let occupied = self.board.occupied();
         let width = self.board.width();
-        let height = self.board.height();
 
         // Regular moves
-        for col_offset in -1..=1i32 {
-            for row_offset in -1..=1i32 {
-                if col_offset == 0 && row_offset == 0 {
-                    continue;
-                }
+        let src_bb = Bitboard::single(src.to_index(width));
+        let attacks = self.geometry.king_attacks(src_bb).andnot(own_color);
 
-                let dst_col = (src.col as i32 + col_offset) as usize;
-                let dst_row = (src.row as i32 + row_offset) as usize;
-
-                if dst_col < width && dst_row < height {
-                    let idx = dst_row * width + dst_col;
-
-                    if own_color.get(idx) {
-                        continue;
-                    }
-
-                    let dst_position = Position::new(dst_col, dst_row);
-
-                    if occupied.get(idx) {
-                        moves.push(Move::from_position(*src, dst_position, MoveFlags::CAPTURE));
-                    } else {
-                        moves.push(Move::from_position(*src, dst_position, MoveFlags::empty()));
-                    }
-                }
-            }
+        for idx in attacks.iter_ones() {
+            let to = Position::from_index(idx, width);
+            let flags = if occupied.get(idx) {
+                MoveFlags::CAPTURE
+            } else {
+                MoveFlags::empty()
+            };
+            moves.push(Move::from_position(*src, to, flags));
         }
 
         // Castling
