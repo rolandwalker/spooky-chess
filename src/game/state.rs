@@ -174,7 +174,8 @@ impl<const NW: usize> Game<NW> {
         if let Some(ep_square) = self.en_passant {
             // Check if any pawn can legally capture en passant
             // Look for pawns of the current player that can attack the en passant square
-            let pawn_row = if self.turn == Color::White { 4 } else { 3 }; // 5th row (index 4) for white, 4th row (index 3) for black
+            let direction: i32 = if self.turn == Color::White { 1 } else { -1 };
+            let pawn_row = (ep_square.row as i32 - direction) as usize;
 
             // Check squares to the left and right of the en passant square
             for col_offset in [-1i32, 1i32] {
