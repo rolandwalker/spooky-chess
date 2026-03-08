@@ -32,27 +32,7 @@ impl<const NW: usize> Game<NW> {
         let dst = Position::new(dst_col, dst_row);
         let piece = self.board.get_piece(&src)?;
 
-        // Infer flags from board state
-        let mut flags = MoveFlags::empty();
-
-        if self.board.get_piece(&dst).is_some() {
-            flags |= MoveFlags::CAPTURE;
-        }
-
-        if piece.piece_type == PieceType::King && (dst.col as i32 - src.col as i32).abs() == 2 {
-            flags |= MoveFlags::CASTLE;
-        }
-
-        if piece.piece_type == PieceType::Pawn {
-            if let Some(ep_square) = self.en_passant {
-                if dst == ep_square {
-                    flags |= MoveFlags::CAPTURE | MoveFlags::EN_PASSANT;
-                }
-            }
-            if (dst.row as i32 - src.row as i32).abs() == 2 {
-                flags |= MoveFlags::DOUBLE_PUSH;
-            }
-        }
+        let mut flags = self.infer_move_flags(&src, &dst, &piece);
 
         // Promotion
         let promotion = if let Some(promo_piece) = promo {

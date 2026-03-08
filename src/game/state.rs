@@ -209,46 +209,41 @@ impl<const NW: usize> Game<NW> {
         false
     }
 
+    /// Infer move flags (capture, castle, en passant, double push) from the current board state.
+    pub fn infer_move_flags(&self, src: &Position, dst: &Position, piece: &Piece) -> MoveFlags {
+        let mut flags = MoveFlags::empty();
+
+        if self.board.get_piece(dst).is_some() {
+            flags |= MoveFlags::CAPTURE;
+        }
+
+        if piece.piece_type == PieceType::King && (dst.col as i32 - src.col as i32).abs() == 2 {
+            flags |= MoveFlags::CASTLE;
+        }
+
+        if piece.piece_type == PieceType::Pawn {
+            if let Some(ep_square) = self.en_passant {
+                if *dst == ep_square {
+                    flags |= MoveFlags::CAPTURE | MoveFlags::EN_PASSANT;
+                }
+            }
+            if (dst.row as i32 - src.row as i32).abs() == 2 {
+                flags |= MoveFlags::DOUBLE_PUSH;
+            }
+        }
+
+        flags
+    }
+
     /// Parse a LAN move string, with game context to set proper flags (castling, en passant, etc.)
     /// The `from_lan()` method on Move itself lacks game context.
     pub fn move_from_lan(&self, lan: &str) -> Result<Move, String> {
         let base_move = Move::from_lan(lan, self.board.width(), self.board.height())?;
 
-        let piece = self.board.get_piece(&base_move.src);
-        if piece.is_none() {
-            return Err("No piece at source square".to_string());
-        }
-        let piece = piece.unwrap();
+        let piece = self.board.get_piece(&base_move.src)
+            .ok_or_else(|| "No piece at source square".to_string())?;
 
-        let mut flags = base_move.flags;
-
-        // Check for capture
-        if self.board.get_piece(&base_move.dst).is_some() {
-            flags |= MoveFlags::CAPTURE;
-        }
-
-        // Check for castling (king moving 2 squares)
-        if piece.piece_type == PieceType::King {
-            let col_diff = (base_move.dst.col as i32 - base_move.src.col as i32).abs();
-            if col_diff == 2 {
-                flags |= MoveFlags::CASTLE;
-            }
-        }
-
-        // Check for en passant
-        if piece.piece_type == PieceType::Pawn {
-            if let Some(ep_square) = self.en_passant {
-                if base_move.dst == ep_square {
-                    flags |= MoveFlags::CAPTURE | MoveFlags::EN_PASSANT;
-                }
-            }
-
-            // Check for double push
-            let row_diff = (base_move.dst.row as i32 - base_move.src.row as i32).abs();
-            if row_diff == 2 {
-                flags |= MoveFlags::DOUBLE_PUSH;
-            }
-        }
+        let flags = base_move.flags | self.infer_move_flags(&base_move.src, &base_move.dst, &piece);
 
         Ok(Move {
             src: base_move.src,
