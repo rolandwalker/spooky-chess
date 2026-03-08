@@ -67,13 +67,8 @@ impl Move {
                 .nth(4)
                 .expect("Failed to get promotion character from LAN string");
 
-            let promotion = match promo_char {
-                'q' => PieceType::Queen,
-                'r' => PieceType::Rook,
-                'b' => PieceType::Bishop,
-                'n' => PieceType::Knight,
-                _ => return Err("Invalid promotion piece".to_string()),
-            };
+            let promotion = PieceType::from_char(promo_char)
+                .ok_or_else(|| "Invalid promotion piece".to_string())?;
 
             move_.promotion = Some(promotion);
             move_.flags |= MoveFlags::PROMOTION;
@@ -86,14 +81,7 @@ impl Move {
         let mut lan = format!("{}{}", self.src.to_algebraic(), self.dst.to_algebraic());
 
         if let Some(promo) = self.promotion {
-            let promo_char = match promo {
-                PieceType::Queen => 'q',
-                PieceType::Rook => 'r',
-                PieceType::Bishop => 'b',
-                PieceType::Knight => 'n',
-                _ => 'q',
-            };
-            lan.push(promo_char);
+            lan.push(promo.to_char());
         }
 
         lan

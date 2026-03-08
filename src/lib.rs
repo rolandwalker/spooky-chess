@@ -554,14 +554,7 @@ mod python_bindings {
         pub fn promotion(&self) -> Option<String> {
             if self.move_.flags.contains(MoveFlags::PROMOTION) {
                 if let Some(promo) = self.move_.promotion {
-                    let promo_char = match promo {
-                        PieceType::Queen => "q",
-                        PieceType::Rook => "r",
-                        PieceType::Bishop => "b",
-                        PieceType::Knight => "n",
-                        _ => "q",
-                    };
-                    Some(promo_char.to_string())
+                    Some(promo.to_char().to_string())
                 } else {
                     Some("q".to_string())
                 }
@@ -620,19 +613,13 @@ mod python_bindings {
     impl PyPiece {
         #[new]
         pub fn new(piece_type: &str, color: i8) -> PyResult<Self> {
-            let pt = match piece_type.to_lowercase().as_str() {
-                "p" | "pawn" => PieceType::Pawn,
-                "n" | "knight" => PieceType::Knight,
-                "b" | "bishop" => PieceType::Bishop,
-                "r" | "rook" => PieceType::Rook,
-                "q" | "queen" => PieceType::Queen,
-                "k" | "king" => PieceType::King,
-                _ => {
-                    return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(
-                        "Invalid piece type",
-                    ))
-                }
-            };
+            let pt = piece_type
+                .chars()
+                .next()
+                .and_then(PieceType::from_char)
+                .ok_or_else(|| {
+                    PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid piece type")
+                })?;
 
             let c = match color {
                 1 => Color::White,
@@ -648,10 +635,6 @@ mod python_bindings {
             Ok(PyPiece {
                 piece: Piece::new(pt, c),
             })
-        }
-
-        pub fn piece_type(&self) -> String {
-            format!("{:?}", self.piece.piece_type).to_lowercase()
         }
 
         pub fn color(&self) -> i8 {

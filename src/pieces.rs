@@ -34,6 +34,31 @@ pub enum PieceType {
     King,
 }
 
+impl PieceType {
+    pub fn to_char(self) -> char {
+        match self {
+            PieceType::Pawn => 'p',
+            PieceType::Knight => 'n',
+            PieceType::Bishop => 'b',
+            PieceType::Rook => 'r',
+            PieceType::Queen => 'q',
+            PieceType::King => 'k',
+        }
+    }
+
+    pub fn from_char(c: char) -> Option<Self> {
+        match c.to_ascii_lowercase() {
+            'p' => Some(PieceType::Pawn),
+            'n' => Some(PieceType::Knight),
+            'b' => Some(PieceType::Bishop),
+            'r' => Some(PieceType::Rook),
+            'q' => Some(PieceType::Queen),
+            'k' => Some(PieceType::King),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Piece {
     pub piece_type: PieceType,
@@ -47,15 +72,7 @@ impl Piece {
     }
 
     pub fn to_char(&self) -> char {
-        let c = match self.piece_type {
-            PieceType::Pawn => 'p',
-            PieceType::Knight => 'n',
-            PieceType::Bishop => 'b',
-            PieceType::Rook => 'r',
-            PieceType::Queen => 'q',
-            PieceType::King => 'k',
-        };
-
+        let c = self.piece_type.to_char();
         match self.color {
             Color::White => c.to_ascii_uppercase(),
             Color::Black => c,
@@ -68,17 +85,6 @@ impl Piece {
         } else {
             Color::Black
         };
-
-        let piece_type = match c.to_ascii_lowercase() {
-            'p' => PieceType::Pawn,
-            'n' => PieceType::Knight,
-            'b' => PieceType::Bishop,
-            'r' => PieceType::Rook,
-            'q' => PieceType::Queen,
-            'k' => PieceType::King,
-            _ => return None,
-        };
-
-        Some(Piece::new(piece_type, color))
+        PieceType::from_char(c).map(|pt| Piece::new(pt, color))
     }
 }

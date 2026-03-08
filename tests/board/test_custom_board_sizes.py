@@ -8,9 +8,9 @@ def test_board_size_limits() -> None:
     for i in range(4, 33):
         board = spooky_chess.Board.empty(width=i, height=i)
 
-        king = spooky_chess.Piece("king", spooky_chess.WHITE)
+        king = spooky_chess.Piece("k", spooky_chess.WHITE)
         board.set_piece(0, 0, king)
-        king = spooky_chess.Piece("king", spooky_chess.BLACK)
+        king = spooky_chess.Piece("k", spooky_chess.BLACK)
         board.set_piece(i - 1, i - 1, king)
 
         assert board.width() == i
@@ -37,7 +37,7 @@ def test_minimum_board_size() -> None:
     assert board.height() == 1
 
     # Should be able to place and remove pieces
-    king = spooky_chess.Piece("king", spooky_chess.WHITE)
+    king = spooky_chess.Piece("k", spooky_chess.WHITE)
     board.set_piece(0, 0, king)
     assert board.get_piece(0, 0) is not None
 
@@ -51,9 +51,9 @@ def test_maximum_board_size() -> None:
     assert board.height() == 32
 
     # Should be able to place pieces at corners
-    king = spooky_chess.Piece("king", spooky_chess.WHITE)
+    king = spooky_chess.Piece("k", spooky_chess.WHITE)
     board.set_piece(0, 0, king)
-    king = spooky_chess.Piece("king", spooky_chess.BLACK)
+    king = spooky_chess.Piece("k", spooky_chess.BLACK)
     board.set_piece(31, 31, king)
 
     assert board.get_piece(0, 0) is not None
