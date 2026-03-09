@@ -1,6 +1,5 @@
 use crate::bitboard::Bitboard;
 use crate::color::Color;
-use crate::directions::KNIGHT_DELTAS;
 use crate::outcome::GameOutcome;
 use crate::pieces::{Piece, PieceType};
 use crate::position::Position;
@@ -12,60 +11,41 @@ use super::Game;
 impl<const NW: usize> Game<NW> {
     pub(super) fn is_square_attacked(&self, square: &Position, by_color: Color) -> bool {
         let width = self.board.width();
-        let height = self.board.height();
         let occupied = self.board.occupied();
         let enemy = self.board.color_bb(by_color);
-        let sq_col = square.col as i32;
-        let sq_row = square.row as i32;
+        let sq_bb = Bitboard::single(square.to_index(width));
 
         // 1. Pawn attacks
-        let pawn_dir: i32 = if by_color == Color::White { -1 } else { 1 };
-        let pawn_row = (sq_row + pawn_dir) as usize;
-        if pawn_row < height {
-            let pawns = self.board.piece_type_bb(PieceType::Pawn) & enemy;
-            for col_offset in [-1i32, 1i32] {
-                let pawn_col = (sq_col + col_offset) as usize;
-                if pawn_col < width {
-                    let idx = pawn_row * width + pawn_col;
-                    if pawns.get(idx) {
-                        return true;
-                    }
-                }
+        let pawns = self.board.piece_type_bb(PieceType::Pawn) & enemy;
+        if !pawns.is_empty() {
+            let pawn_attackers = self.geometry.pawn_attacks(sq_bb, by_color != Color::White);
+            if !(pawn_attackers & pawns).is_empty() {
+                return true;
             }
         }
 
         // 2. Knight attacks
         let knights = self.board.piece_type_bb(PieceType::Knight) & enemy;
         if !knights.is_empty() {
-            for (col_off, row_off) in KNIGHT_DELTAS {
-                let nc = (sq_col + col_off) as usize;
-                let nr = (sq_row + row_off) as usize;
-                if nc < width && nr < height {
-                    let idx = nr * width + nc;
-                    if knights.get(idx) {
-                        return true;
-                    }
-                }
+            if !(self.geometry.knight_attacks(sq_bb) & knights).is_empty() {
+                return true;
             }
         }
 
         // 3. King attacks
         let kings = self.board.piece_type_bb(PieceType::King) & enemy;
         if !kings.is_empty() {
-            let sq_bb = Bitboard::single(square.to_index(width));
             if !(self.geometry.king_attacks(sq_bb) & kings).is_empty() {
                 return true;
             }
         }
 
         // 4. Sliding attacks — rooks/queens along ranks and files
-        let rooks_queens = (self.board.piece_type_bb(PieceType::Rook)
-            | self.board.piece_type_bb(PieceType::Queen))
-            & enemy;
+        let queens = self.board.piece_type_bb(PieceType::Queen) & enemy;
+        let rooks_queens = (self.board.piece_type_bb(PieceType::Rook) & enemy) | queens;
         if !rooks_queens.is_empty() {
-            let src_bb = Bitboard::single(square.to_index(width));
             for dir in &self.geometry.orthogonal_steps {
-                let ray = self.geometry.ray_attacks(src_bb, dir, occupied);
+                let ray = self.geometry.ray_attacks(sq_bb, dir, occupied);
                 if !(ray & rooks_queens).is_empty() {
                     return true;
                 }
@@ -73,13 +53,10 @@ impl<const NW: usize> Game<NW> {
         }
 
         // 5. Sliding attacks — bishops/queens along diagonals
-        let bishops_queens = (self.board.piece_type_bb(PieceType::Bishop)
-            | self.board.piece_type_bb(PieceType::Queen))
-            & enemy;
+        let bishops_queens = (self.board.piece_type_bb(PieceType::Bishop) & enemy) | queens;
         if !bishops_queens.is_empty() {
-            let src_bb = Bitboard::single(square.to_index(width));
             for dir in &self.geometry.diagonal_steps {
-                let ray = self.geometry.ray_attacks(src_bb, dir, occupied);
+                let ray = self.geometry.ray_attacks(sq_bb, dir, occupied);
                 if !(ray & bishops_queens).is_empty() {
                     return true;
                 }
