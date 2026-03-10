@@ -254,8 +254,8 @@ pub(crate) fn encode_move_plane(move_: &Move, width: usize, height: usize) -> Op
 
     // Underpromotions (only for non-queen promotions)
     // Note: underpromotions are forward by 1 row only (dy = ±1 depending on perspective)
-    if let Some(promo) = move_.promotion {
-        if promo != PieceType::Queen && dy.abs() == 1 {
+    if let Some(promo) = move_.promotion
+        && promo != PieceType::Queen && dy.abs() == 1 {
             let direction_idx = if dx == -1 {
                 0 // left diagonal
             } else if dx == 0 {
@@ -288,7 +288,6 @@ pub(crate) fn encode_move_plane(move_: &Move, width: usize, height: usize) -> Op
                     + piece_idx,
             );
         }
-    }
 
     // Horizontal/vertical/diagonal moves for all non-knight pieces
     // Verify it's actually a straight/diagonal move (not an arbitrary direction)

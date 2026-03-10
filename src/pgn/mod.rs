@@ -203,7 +203,7 @@ fn parse_game_node(game_node: &Node, source: &[u8]) -> Result<PgnGame, PgnError>
     let has_setup = headers.get("SetUp").map(|v| v == "1").unwrap_or(false);
     let mut game = if has_setup {
         if let Some(fen) = headers.get("FEN") {
-            StandardGame::new(fen, true).map_err(|e| PgnError::ParseError(e))?
+            StandardGame::new(fen, true).map_err(PgnError::ParseError)?
         } else {
             StandardGame::standard()
         }

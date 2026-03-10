@@ -1,0 +1,8 @@
+[package]
+name = "test_performance"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+spooky_chess = { path = "../../" }
+rand = "0.10.0"

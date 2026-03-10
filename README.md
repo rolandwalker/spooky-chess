@@ -10,17 +10,30 @@ Rust and Python library for the game of Chess.
 
 # Performance
 
-Threadripper 9980x, 6400 MT/s CL36 DDR5:
+Measured with a Threadripper 9980x, and 6400 MT/s CL36 DDR5.
 
 ```fish
-> uv run python -m pytest -k test_compare_random_game_playout -s
+> cargo run
 50000 random game playouts
-  spooky_chess: 13.4548s
-  python-chess: 113.2344s
-  Speedup: 8.42x
+  spooky_chess (Rust Bindings):
+    moves:   4937416
+    time:    8.64s
+    moves/s: 571164.98
 ```
 
-Most of the runtime is Python overhead, and not spooky_chess itself.
+```fish
+> uv run python -m pytest -k test_compare_random_game_playout -s --run-slow
+50000 random game playouts
+  spooky_chess (Python Bindings):
+    moves:   4935959
+    time:    13.20s
+    moves/s: 373852.68
+  python-chess:
+    moves:   4936438
+    time:    112.38s
+    moves/s: 43927.96
+  Speedup: 8.51x
+```
 
 # Validity
 
@@ -42,7 +55,7 @@ uv add spooky-chess
 
 Includes type hints.
 
-## Develop
+# Develop
 
 ### Tests
 
@@ -58,3 +71,9 @@ Includes type hints.
 
 - `fish run_benchmark.fish`
 - `fish run_profile.fish`
+
+# See Also
+
+* spooky-chess
+* [spooky-connect4](https://github.com/snowdrop4/spooky-connect4)
+* [spooky-go](https://github.com/snowdrop4/spooky-go)

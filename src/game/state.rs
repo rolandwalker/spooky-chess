@@ -167,11 +167,10 @@ where
         }
 
         if piece.piece_type == PieceType::Pawn {
-            if let Some(ep_square) = self.en_passant {
-                if *dst == ep_square {
+            if let Some(ep_square) = self.en_passant
+                && *dst == ep_square {
                     flags |= MoveFlags::CAPTURE | MoveFlags::EN_PASSANT;
                 }
-            }
             if (dst.row as i32 - src.row as i32).abs() == 2 {
                 flags |= MoveFlags::DOUBLE_PUSH;
             }
@@ -378,16 +377,14 @@ where
                 if p.piece_type != piece_type {
                     return false;
                 }
-                if let Some(f) = file_hint {
-                    if m.src.col != f {
+                if let Some(f) = file_hint
+                    && m.src.col != f {
                         return false;
                     }
-                }
-                if let Some(r) = rank_hint {
-                    if m.src.row != r {
+                if let Some(r) = rank_hint
+                    && m.src.row != r {
                         return false;
                     }
-                }
                 if let Some(pt) = promo_type {
                     if m.promotion != Some(pt) {
                         return false;
