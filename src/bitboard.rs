@@ -588,6 +588,11 @@ where
         dir: &DirStep<{ (W * H).div_ceil(64) }>,
         occupied: Bitboard<{ (W * H).div_ceil(64) }>,
     ) -> Bitboard<{ (W * H).div_ceil(64) }> {
+        debug_assert!(
+            src.count() == 1,
+            "ray_attacks: src must be a single bit, got {} bits",
+            src.count(),
+        );
         let mut attacks = Bitboard::empty();
         let mut cursor = dir.step(src);
         let max_steps = W.max(H);
@@ -617,6 +622,13 @@ where
 
     #[inline]
     pub fn knight_attacks(&self, sq_index: usize) -> Bitboard<{ (W * H).div_ceil(64) }> {
+        debug_assert!(
+            sq_index < W * H,
+            "knight_attacks: sq_index {} out of bounds for {}x{} board",
+            sq_index,
+            W,
+            H,
+        );
         self.knight_attacks_table[sq_index]
     }
 
@@ -642,6 +654,13 @@ where
         sq_index: usize,
         is_white: bool,
     ) -> Bitboard<{ (W * H).div_ceil(64) }> {
+        debug_assert!(
+            sq_index < W * H,
+            "pawn_attacks: sq_index {} out of bounds for {}x{} board",
+            sq_index,
+            W,
+            H,
+        );
         if is_white {
             self.pawn_attacks_white_table[sq_index]
         } else {
@@ -651,6 +670,13 @@ where
 
     #[inline]
     pub fn king_attacks(&self, sq_index: usize) -> Bitboard<{ (W * H).div_ceil(64) }> {
+        debug_assert!(
+            sq_index < W * H,
+            "king_attacks: sq_index {} out of bounds for {}x{} board",
+            sq_index,
+            W,
+            H,
+        );
         self.king_attacks_table[sq_index]
     }
 
@@ -662,6 +688,10 @@ where
         seed: Bitboard<{ (W * H).div_ceil(64) }>,
         mask: Bitboard<{ (W * H).div_ceil(64) }>,
     ) -> Bitboard<{ (W * H).div_ceil(64) }> {
+        debug_assert!(
+            seed.andnot(mask).is_empty(),
+            "flood_fill: seed has bits outside mask",
+        );
         let mut filled = seed & mask;
         loop {
             let nbrs = self.neighbors(&filled);

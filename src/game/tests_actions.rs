@@ -5,14 +5,14 @@ use crate::position::Position;
 use rand::prelude::IndexedRandom;
 use rand::SeedableRng;
 
-type StdGame = Game<8, 8>;
+type Game8x8 = Game<8, 8>;
 
 #[test]
-fn test_encode_decode_action_roundtrip() {
+fn encode_decode_action_roundtrip() {
     let mut rng = rand::rngs::StdRng::seed_from_u64(42);
 
     for _game_num in 0..500 {
-        let mut game = StdGame::standard();
+        let mut game = Game8x8::standard();
         for _move_num in 0..200 {
             if game.is_over() {
                 break;
@@ -56,8 +56,9 @@ fn test_encode_decode_action_roundtrip() {
 }
 
 #[test]
-fn test_8x8_apply_action_roundtrip() {
-    let mut game = StdGame::standard();
+fn apply_action_roundtrip() {
+    let mut game = Game8x8::standard();
+
     // e2e4 as an action
     let mv = game.move_from_lan("e2e4").unwrap();
     let action = game.encode_action(&mv).unwrap();

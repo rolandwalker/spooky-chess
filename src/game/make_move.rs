@@ -38,8 +38,29 @@ where
     }
 
     pub(super) fn apply_move(&mut self, mv: &Move, piece: &Piece) {
-        // Store state for unmake
-        let captured = self.board.get_piece(&mv.dst);
+        debug_assert!(
+            piece.color == self.turn,
+            "apply_move: piece color {:?} doesn't match turn {:?}",
+            piece.color,
+            self.turn,
+        );
+        debug_assert!(
+            self.board.get_piece(&mv.src) == Some(*piece),
+            "apply_move: expected {:?} at ({}, {}), found {:?}",
+            piece,
+            mv.src.col,
+            mv.src.row,
+            self.board.get_piece(&mv.src),
+        );
+
+        // Store state for unmake.
+        // Castle moves never capture — the destination may overlap with the
+        // castling rook on small boards, but that rook is moved, not captured.
+        let captured = if mv.flags.contains(MoveFlags::CASTLE) {
+            None
+        } else {
+            self.board.get_piece(&mv.dst)
+        };
         let old_castling = self.castling_rights;
         let old_en_passant = self.en_passant;
         let old_halfmove = self.halfmove_clock;
@@ -48,6 +69,11 @@ where
         // don't overlap on the same square (which would corrupt bitboards on
         // small boards where king destination == rook source).
         if mv.flags.contains(MoveFlags::CASTLE) {
+            debug_assert!(
+                piece.piece_type == PieceType::King,
+                "castle move but piece is {:?}",
+                piece.piece_type,
+            );
             let rook = Piece::new(PieceType::Rook, piece.color);
             let (rook_from, rook_to) = if mv.dst.col > mv.src.col {
                 // Kingside
@@ -63,6 +89,13 @@ where
                 )
             };
 
+            debug_assert!(
+                self.board.get_piece(&rook_from) == Some(rook),
+                "castling: expected rook at ({}, {}), found {:?}",
+                rook_from.col,
+                rook_from.row,
+                self.board.get_piece(&rook_from),
+            );
             self.board.remove_piece(&rook_from, &rook);
             self.board.place_piece(&rook_to, &rook);
         }
@@ -75,6 +108,10 @@ where
 
         // Handle promotion
         let placed_piece = if mv.flags.contains(MoveFlags::PROMOTION) {
+            debug_assert!(
+                mv.promotion.is_some(),
+                "PROMOTION flag set but no promotion piece type specified",
+            );
             Piece::new(mv.promotion.unwrap_or(PieceType::Queen), piece.color)
         } else {
             *piece
@@ -91,8 +128,23 @@ where
 
         // Handle en passant capture
         if mv.flags.contains(MoveFlags::EN_PASSANT) {
+            debug_assert!(
+                captured.is_none(),
+                "en passant move has a captured piece on destination square",
+            );
+            debug_assert!(
+                self.en_passant.is_some(),
+                "EN_PASSANT flag set but no en passant square",
+            );
             let captured_pawn_pos = Position::new(mv.dst.col, mv.src.row);
             let ep_piece = Piece::new(PieceType::Pawn, piece.color.opposite());
+            debug_assert!(
+                self.board.get_piece(&captured_pawn_pos) == Some(ep_piece),
+                "en passant: expected opponent pawn at ({}, {}), found {:?}",
+                captured_pawn_pos.col,
+                captured_pawn_pos.row,
+                self.board.get_piece(&captured_pawn_pos),
+            );
             self.board.remove_piece(&captured_pawn_pos, &ep_piece);
         }
 
@@ -100,6 +152,13 @@ where
         self.update_castling_rights(mv, piece);
 
         // Update en passant square
+        debug_assert!(
+            piece.piece_type != PieceType::Pawn
+                || (mv.dst.row as i32 - mv.src.row as i32).abs() <= 2,
+            "pawn moved more than 2 rows: from row {} to row {}",
+            mv.src.row,
+            mv.dst.row,
+        );
         self.en_passant = None;
         if piece.piece_type == PieceType::Pawn && (mv.dst.row as i32 - mv.src.row as i32).abs() == 2
         {
@@ -128,6 +187,22 @@ where
             halfmove_clock: old_halfmove,
         });
 
+        // Verify king position cache consistency
+        debug_assert!(
+            self.board.get_piece(&self.white_king_pos)
+                == Some(Piece::new(PieceType::King, Color::White)),
+            "white_king_pos ({}, {}) desynced after apply_move",
+            self.white_king_pos.col,
+            self.white_king_pos.row,
+        );
+        debug_assert!(
+            self.board.get_piece(&self.black_king_pos)
+                == Some(Piece::new(PieceType::King, Color::Black)),
+            "black_king_pos ({}, {}) desynced after apply_move",
+            self.black_king_pos.col,
+            self.black_king_pos.row,
+        );
+
         // Switch turns (always, even if the game is over)
         self.turn = self.turn.opposite();
     }
@@ -148,6 +223,12 @@ where
                 .board
                 .get_piece(&mv.dst)
                 .expect("no piece at move dst during unmake");
+            debug_assert!(
+                dst_piece.color == self.turn,
+                "unmake: piece at destination has color {:?} but expected {:?}",
+                dst_piece.color,
+                self.turn,
+            );
             self.board.remove_piece(&mv.dst, &dst_piece);
 
             // Restore original piece to source
@@ -196,6 +277,13 @@ where
                     )
                 };
 
+                debug_assert!(
+                    self.board.get_piece(&rook_to) == Some(rook),
+                    "unmake castling: expected rook at ({}, {}), found {:?}",
+                    rook_to.col,
+                    rook_to.row,
+                    self.board.get_piece(&rook_to),
+                );
                 self.board.remove_piece(&rook_to, &rook);
                 self.board.place_piece(&rook_from, &rook);
             }
@@ -206,8 +294,28 @@ where
             self.halfmove_clock = old_halfmove;
 
             if self.turn == Color::Black {
+                debug_assert!(
+                    self.fullmove_number >= 2,
+                    "fullmove_number would underflow in unmake_move",
+                );
                 self.fullmove_number -= 1;
             }
+
+            // Verify king position cache consistency after unmake
+            debug_assert!(
+                self.board.get_piece(&self.white_king_pos)
+                    == Some(Piece::new(PieceType::King, Color::White)),
+                "white_king_pos ({}, {}) desynced after unmake_move",
+                self.white_king_pos.col,
+                self.white_king_pos.row,
+            );
+            debug_assert!(
+                self.board.get_piece(&self.black_king_pos)
+                    == Some(Piece::new(PieceType::King, Color::Black)),
+                "black_king_pos ({}, {}) desynced after unmake_move",
+                self.black_king_pos.col,
+                self.black_king_pos.row,
+            );
 
             true
         } else {

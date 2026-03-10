@@ -102,9 +102,15 @@ fn outcome_stalemate() {
     let fen = "K7/8/1q6/8/8/8/8/2k5 w - - 0 1";
     let mut game = Game8x8::new(fen, false).expect("Failed to parse stalemate FEN");
 
-    assert!(!game.is_check(), "King should not be in check for stalemate");
+    assert!(
+        !game.is_check(),
+        "King should not be in check for stalemate"
+    );
     let moves = game.legal_moves();
-    assert!(moves.is_empty(), "King should have no legal moves for stalemate");
+    assert!(
+        moves.is_empty(),
+        "King should have no legal moves for stalemate"
+    );
     assert!(game.is_stalemate());
     assert_eq!(game.outcome(), Some(GameOutcome::Stalemate));
 }

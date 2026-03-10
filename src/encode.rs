@@ -70,6 +70,14 @@ where
         game.make_move_unchecked(mv);
     }
 
+    debug_assert_eq!(
+        game.move_count(),
+        history_len,
+        "game state not fully restored after encode: move_count {} != original {}",
+        game.move_count(),
+        history_len,
+    );
+
     // Constant planes start at index: HISTORY_LENGTH * PIECE_PLANES
     let constant_start = HISTORY_LENGTH * PIECE_PLANES;
 
@@ -155,24 +163,60 @@ fn fill_chess_planes<const W: usize, const H: usize>(
     [(); (W * H).div_ceil(64)]:,
 {
     let board_size = H * W;
+    debug_assert!(
+        t < HISTORY_LENGTH,
+        "history timestep t={} exceeds HISTORY_LENGTH={}",
+        t,
+        HISTORY_LENGTH,
+    );
     let base_plane = t * PIECE_PLANES;
 
     for (pos, piece) in game.board().pieces_iter(perspective) {
         let plane_idx = piece_type_plane_index(piece.piece_type);
         let offset = (base_plane + plane_idx) * board_size;
-        data[offset + pos.to_index(W)] = 1.0;
+        let idx = pos.to_index(W);
+        debug_assert!(
+            idx < board_size,
+            "piece position index {} exceeds board_size {}",
+            idx,
+            board_size,
+        );
+        data[offset + idx] = 1.0;
     }
 
     for (pos, piece) in game.board().pieces_iter(perspective.opposite()) {
         let plane_idx = piece_type_plane_index(piece.piece_type);
         let offset = (base_plane + 6 + plane_idx) * board_size;
-        data[offset + pos.to_index(W)] = 1.0;
+        let idx = pos.to_index(W);
+        debug_assert!(
+            idx < board_size,
+            "piece position index {} exceeds board_size {}",
+            idx,
+            board_size,
+        );
+        data[offset + idx] = 1.0;
     }
 }
 
 /// Encode a move as a full action index (plane * board_size + src_index)
 #[hotpath::measure]
 pub fn encode_action(move_: &Move, width: usize, height: usize) -> Option<usize> {
+    debug_assert!(
+        move_.src.col < width && move_.src.row < height,
+        "encode_action: move src ({},{}) out of bounds for {}x{} board",
+        move_.src.col,
+        move_.src.row,
+        width,
+        height,
+    );
+    debug_assert!(
+        move_.dst.col < width && move_.dst.row < height,
+        "encode_action: move dst ({},{}) out of bounds for {}x{} board",
+        move_.dst.col,
+        move_.dst.row,
+        width,
+        height,
+    );
     let plane = encode_move_plane(move_, width, height)?;
     let board_size = width * height;
     let src_index = move_.src.row * width + move_.src.col;

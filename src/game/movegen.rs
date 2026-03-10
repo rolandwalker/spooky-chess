@@ -36,11 +36,28 @@ where
     /// Test whether a pseudo-legal move is actually legal (doesn't leave own king in check).
     /// Temporarily makes the move on the board, checks, then unmakes.
     pub(super) fn is_pseudo_legal_move_legal(&mut self, mv: &Move, piece: &Piece) -> bool {
+        debug_assert!(
+            self.board.get_piece(&self.white_king_pos)
+                == Some(Piece::new(PieceType::King, Color::White)),
+            "white_king_pos {:?} doesn't contain a white king",
+            self.white_king_pos,
+        );
+        debug_assert!(
+            self.board.get_piece(&self.black_king_pos)
+                == Some(Piece::new(PieceType::King, Color::Black)),
+            "black_king_pos {:?} doesn't contain a black king",
+            self.black_king_pos,
+        );
         let opponent = piece.color.opposite();
 
         let captured =
             if mv.flags.contains(MoveFlags::CAPTURE) && !mv.flags.contains(MoveFlags::EN_PASSANT) {
                 let dst_idx = mv.dst.to_index(W);
+                debug_assert!(
+                    self.board.piece_type_at(dst_idx).is_some(),
+                    "CAPTURE flag set but no piece at destination index {}",
+                    dst_idx,
+                );
                 let pt = self.board.piece_type_at(dst_idx).unwrap();
                 Some(Piece::new(pt, opponent))
             } else {
@@ -62,6 +79,13 @@ where
                     Position::new(mv.dst.col + 1, mv.dst.row),
                 )
             };
+            debug_assert!(
+                self.board.get_piece(&rook_from) == Some(rook),
+                "castling legality: expected rook at ({}, {}), found {:?}",
+                rook_from.col,
+                rook_from.row,
+                self.board.get_piece(&rook_from),
+            );
             self.board.remove_piece(&rook_from, &rook);
             self.board.place_piece(&rook_to, &rook);
             Some((rook_from, rook_to, rook))
@@ -100,6 +124,13 @@ where
         let ep_captured = if mv.flags.contains(MoveFlags::EN_PASSANT) {
             let ep_pos = Position::new(mv.dst.col, mv.src.row);
             let ep_piece = Piece::new(PieceType::Pawn, opponent);
+            debug_assert!(
+                self.board.get_piece(&ep_pos) == Some(ep_piece),
+                "en passant legality: expected opponent pawn at ({}, {}), found {:?}",
+                ep_pos.col,
+                ep_pos.row,
+                self.board.get_piece(&ep_pos),
+            );
             self.board.remove_piece(&ep_pos, &ep_piece);
             Some((ep_pos, ep_piece))
         } else {
@@ -280,6 +311,13 @@ where
 
         // En passant
         if let Some(ep) = self.en_passant {
+            debug_assert!(
+                ep.row == 2 || ep.row == H - 3,
+                "en passant square ({}, {}) is not on a valid row (expected row 2 or {})",
+                ep.col,
+                ep.row,
+                H - 3,
+            );
             let ep_bb = Bitboard::single(ep.to_index(W));
             if !(attacks & ep_bb).is_empty() {
                 moves.push(Move::from_position(
@@ -375,6 +413,14 @@ where
         piece: &Piece,
         moves: &mut Vec<Move>,
     ) {
+        debug_assert!(
+            *src == match piece.color {
+                Color::White => self.white_king_pos,
+                Color::Black => self.black_king_pos,
+            },
+            "king move generation src {:?} doesn't match tracked king pos",
+            src,
+        );
         let own_color = self.board.color_bb(piece.color);
         let occupied = self.board.occupied();
 

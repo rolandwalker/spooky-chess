@@ -97,6 +97,10 @@ where
 
     #[inline]
     pub fn occupied(&self) -> Bitboard<{ (W * H).div_ceil(64) }> {
+        debug_assert!(
+            (self.white & self.black).is_empty(),
+            "board corruption: white and black bitboards overlap",
+        );
         self.white | self.black
     }
 
@@ -152,6 +156,12 @@ where
             | (self.kings.bit_at(index) << 5);
 
         // Only keys with a single bit set (or 0) are valid on a correct board.
+        debug_assert!(
+            key == 0 || key.is_power_of_two(),
+            "board corruption: multiple piece types at index {} (key=0b{:06b})",
+            index,
+            key,
+        );
         const TABLE: [Option<PieceType>; 64] = {
             let mut t: [Option<PieceType>; 64] = [None; 64];
             t[1] = Some(PieceType::Pawn);
@@ -172,6 +182,17 @@ where
         }
         let idx = Self::index(pos.col, pos.row);
         let pt = self.piece_type_at(idx)?;
+        debug_assert!(
+            self.white.get(idx) || self.black.get(idx),
+            "board corruption: piece type {:?} at index {} but neither color bitboard has it set",
+            pt,
+            idx,
+        );
+        debug_assert!(
+            !(self.white.get(idx) && self.black.get(idx)),
+            "board corruption: index {} claimed by both white and black bitboards",
+            idx,
+        );
         let color = if self.white.get(idx) {
             Color::White
         } else {
@@ -205,7 +226,29 @@ where
     /// Remove a known piece from the board. Caller must guarantee `piece` matches what's at `pos`.
     #[inline]
     pub fn remove_piece(&mut self, pos: &Position, piece: &Piece) {
+        debug_assert!(
+            pos.is_valid(W, H),
+            "remove_piece: position ({}, {}) out of bounds for {}x{} board",
+            pos.col,
+            pos.row,
+            W,
+            H,
+        );
         let idx = Self::index(pos.col, pos.row);
+        debug_assert!(
+            self.piece_type_bb(piece.piece_type).get(idx),
+            "remove_piece: no {:?} at ({}, {})",
+            piece.piece_type,
+            pos.col,
+            pos.row,
+        );
+        debug_assert!(
+            self.color_bb(piece.color).get(idx),
+            "remove_piece: no {:?} piece at ({}, {})",
+            piece.color,
+            pos.col,
+            pos.row,
+        );
         self.piece_type_bb_mut(piece.piece_type).clear(idx);
         self.color_bb_mut(piece.color).clear(idx);
     }
@@ -213,6 +256,14 @@ where
     /// Place a piece on the board. The target square must be empty.
     #[inline]
     pub fn place_piece(&mut self, pos: &Position, piece: &Piece) {
+        debug_assert!(
+            pos.is_valid(W, H),
+            "place_piece: position ({}, {}) out of bounds for {}x{} board",
+            pos.col,
+            pos.row,
+            W,
+            H,
+        );
         let idx = Self::index(pos.col, pos.row);
         debug_assert!(
             !self.occupied().get(idx),
@@ -363,6 +414,12 @@ where
     #[inline]
     fn next(&mut self) -> Option<Self::Item> {
         let idx = self.bit_iter.next()?;
+        debug_assert!(
+            self.board.piece_type_at(idx).is_some(),
+            "board corruption: color {:?} bitboard has bit at index {} but no piece type found",
+            self.color,
+            idx,
+        );
         let pt = self.board.piece_type_at(idx).unwrap();
         let pos = Position::from_index(idx, W);
         Some((pos, Piece::new(pt, self.color)))

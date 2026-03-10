@@ -2,12 +2,14 @@ use super::*;
 use crate::pieces::PieceType;
 use crate::position::Position;
 use crate::r#move::MoveFlags;
+use rand::prelude::IndexedRandom;
+use rand::SeedableRng;
 
-type StdGame = Game<8, 8>;
+type Game8x8 = Game<8, 8>;
 
 #[test]
-fn test_san_basic_pawn_moves() {
-    let mut game = StdGame::standard();
+fn san_basic_pawn_moves() {
+    let mut game = Game8x8::standard();
     let mv = game.move_from_lan("e2e4").unwrap();
     assert_eq!(game.move_to_san(&mv), "e4");
 
@@ -16,16 +18,16 @@ fn test_san_basic_pawn_moves() {
 }
 
 #[test]
-fn test_san_knight_move() {
-    let mut game = StdGame::standard();
+fn san_knight_move() {
+    let mut game = Game8x8::standard();
     let mv = game.move_from_lan("g1f3").unwrap();
     assert_eq!(game.move_to_san(&mv), "Nf3");
 }
 
 #[test]
-fn test_san_bishop_move() {
+fn san_bishop_move() {
     // 1. e4 e5 2. Bc4
-    let mut game = StdGame::standard();
+    let mut game = Game8x8::standard();
     game.make_move(&game.move_from_lan("e2e4").unwrap());
     game.make_move(&game.move_from_lan("e7e5").unwrap());
     let mv = game.move_from_lan("f1c4").unwrap();
@@ -33,9 +35,9 @@ fn test_san_bishop_move() {
 }
 
 #[test]
-fn test_san_capture() {
+fn san_capture() {
     // 1. e4 d5 2. exd5
-    let mut game = StdGame::standard();
+    let mut game = Game8x8::standard();
     game.make_move(&game.move_from_lan("e2e4").unwrap());
     game.make_move(&game.move_from_lan("d7d5").unwrap());
     let mv = game.move_from_lan("e4d5").unwrap();
@@ -43,9 +45,9 @@ fn test_san_capture() {
 }
 
 #[test]
-fn test_san_piece_capture() {
+fn san_piece_capture() {
     // 1. e4 e5 2. Bc4 Nc6 3. Bxf7+
-    let mut game = StdGame::standard();
+    let mut game = Game8x8::standard();
     game.make_move(&game.move_from_lan("e2e4").unwrap());
     game.make_move(&game.move_from_lan("e7e5").unwrap());
     game.make_move(&game.move_from_lan("f1c4").unwrap());
@@ -55,10 +57,10 @@ fn test_san_piece_capture() {
 }
 
 #[test]
-fn test_san_disambiguation_file() {
+fn san_disambiguation_file() {
     // Two rooks on same rank, different files
     let fen2 = "4k3/8/8/8/8/8/4K3/R6R w - - 0 1";
-    let mut game = StdGame::new(fen2, false).unwrap();
+    let mut game = Game8x8::new(fen2, false).unwrap();
     let mv = game.move_from_lan("a1d1").unwrap();
     assert_eq!(game.move_to_san(&mv), "Rad1");
     let mv2 = game.move_from_lan("h1d1").unwrap();
@@ -66,10 +68,10 @@ fn test_san_disambiguation_file() {
 }
 
 #[test]
-fn test_san_disambiguation_rank() {
+fn san_disambiguation_rank() {
     // Two rooks on same file, different ranks
     let fen = "4k3/8/8/8/R7/8/8/R3K3 w - - 0 1";
-    let mut game = StdGame::new(fen, false).unwrap();
+    let mut game = Game8x8::new(fen, false).unwrap();
     let mv = game.move_from_lan("a1a2").unwrap();
     assert_eq!(game.move_to_san(&mv), "R1a2");
     let mv2 = game.move_from_lan("a4a2").unwrap();
@@ -77,41 +79,41 @@ fn test_san_disambiguation_rank() {
 }
 
 #[test]
-fn test_san_castling_kingside() {
+fn san_castling_kingside() {
     let fen = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
-    let mut game = StdGame::new(fen, true).unwrap();
+    let mut game = Game8x8::new(fen, true).unwrap();
     let mv = game.move_from_lan("e1g1").unwrap();
     assert_eq!(game.move_to_san(&mv), "O-O");
 }
 
 #[test]
-fn test_san_castling_queenside() {
+fn san_castling_queenside() {
     let fen = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
-    let mut game = StdGame::new(fen, true).unwrap();
+    let mut game = Game8x8::new(fen, true).unwrap();
     let mv = game.move_from_lan("e1c1").unwrap();
     assert_eq!(game.move_to_san(&mv), "O-O-O");
 }
 
 #[test]
-fn test_san_promotion() {
+fn san_promotion() {
     let fen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1";
-    let mut game = StdGame::new(fen, false).unwrap();
+    let mut game = Game8x8::new(fen, false).unwrap();
     let mv = game.move_from_lan("e7e8q").unwrap();
     assert_eq!(game.move_to_san(&mv), "e8=Q+");
 }
 
 #[test]
-fn test_san_promotion_capture() {
+fn san_promotion_capture() {
     let fen = "3n1k2/4P3/8/8/8/8/8/4K3 w - - 0 1";
-    let mut game = StdGame::new(fen, false).unwrap();
+    let mut game = Game8x8::new(fen, false).unwrap();
     let mv = game.move_from_lan("e7d8n").unwrap();
     assert_eq!(game.move_to_san(&mv), "exd8=N");
 }
 
 #[test]
-fn test_san_checkmate() {
+fn san_checkmate() {
     // Fool's mate: 1. f3 e5 2. g4 Qh4#
-    let mut game = StdGame::standard();
+    let mut game = Game8x8::standard();
     game.make_move(&game.move_from_lan("f2f3").unwrap());
     game.make_move(&game.move_from_lan("e7e5").unwrap());
     game.make_move(&game.move_from_lan("g2g4").unwrap());
@@ -120,33 +122,33 @@ fn test_san_checkmate() {
 }
 
 #[test]
-fn test_san_en_passant() {
+fn san_en_passant() {
     let fen = "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1";
-    let mut game = StdGame::new(fen, false).unwrap();
+    let mut game = Game8x8::new(fen, false).unwrap();
     let mv = game.move_from_lan("e5d6").unwrap();
     assert_eq!(game.move_to_san(&mv), "exd6");
 }
 
 #[test]
-fn test_san_from_basic() {
-    let mut game = StdGame::standard();
+fn san_from_basic() {
+    let mut game = Game8x8::standard();
     let mv = game.move_from_san("e4").unwrap();
     assert_eq!(mv.src, Position::new(4, 1));
     assert_eq!(mv.dst, Position::new(4, 3));
 }
 
 #[test]
-fn test_san_from_knight() {
-    let mut game = StdGame::standard();
+fn san_from_knight() {
+    let mut game = Game8x8::standard();
     let mv = game.move_from_san("Nf3").unwrap();
     assert_eq!(mv.src, Position::new(6, 0));
     assert_eq!(mv.dst, Position::new(5, 2));
 }
 
 #[test]
-fn test_san_from_castling() {
+fn san_from_castling() {
     let fen = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
-    let mut game = StdGame::new(fen, true).unwrap();
+    let mut game = Game8x8::new(fen, true).unwrap();
     let mv = game.move_from_san("O-O").unwrap();
     assert!(mv.flags.contains(MoveFlags::CASTLE));
     assert!(mv.dst.col > mv.src.col);
@@ -157,50 +159,50 @@ fn test_san_from_castling() {
 }
 
 #[test]
-fn test_san_from_castling_zeros() {
+fn san_from_castling_zeros() {
     let fen = "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1";
-    let mut game = StdGame::new(fen, true).unwrap();
+    let mut game = Game8x8::new(fen, true).unwrap();
     let mv = game.move_from_san("0-0").unwrap();
     assert!(mv.flags.contains(MoveFlags::CASTLE));
 }
 
 #[test]
-fn test_san_from_promotion() {
+fn san_from_promotion() {
     let fen = "k7/4P3/8/8/8/8/8/4K3 w - - 0 1";
-    let mut game = StdGame::new(fen, false).unwrap();
+    let mut game = Game8x8::new(fen, false).unwrap();
     let mv = game.move_from_san("e8=Q").unwrap();
     assert_eq!(mv.promotion, Some(PieceType::Queen));
     assert_eq!(mv.dst, Position::new(4, 7));
 }
 
 #[test]
-fn test_san_from_with_check_suffix() {
-    let mut game = StdGame::standard();
+fn san_from_with_check_suffix() {
+    let mut game = Game8x8::standard();
     // Should ignore the + suffix
     let mv = game.move_from_san("Nf3+").unwrap();
     assert_eq!(mv.dst, Position::new(5, 2));
 }
 
 #[test]
-fn test_san_from_disambiguation() {
+fn san_from_disambiguation() {
     let fen = "4k3/8/8/8/8/8/4K3/R6R w - - 0 1";
-    let mut game = StdGame::new(fen, false).unwrap();
+    let mut game = Game8x8::new(fen, false).unwrap();
     let mv = game.move_from_san("Rad1").unwrap();
     assert_eq!(mv.src, Position::new(0, 0)); // a1
     assert_eq!(mv.dst, Position::new(3, 0)); // d1
 }
 
 #[test]
-fn test_san_from_error_invalid() {
-    let mut game = StdGame::standard();
+fn san_from_error_invalid() {
+    let mut game = Game8x8::standard();
     assert!(game.move_from_san("Zz9").is_err());
     assert!(game.move_from_san("").is_err());
 }
 
 #[test]
-fn test_san_roundtrip_all_legal_moves() {
+fn san_roundtrip_all_legal_moves() {
     // From starting position, every legal move should roundtrip through SAN
-    let mut game = StdGame::standard();
+    let mut game = Game8x8::standard();
     let legal = game.legal_moves();
     for mv in &legal {
         let san = game.move_to_san(mv);
@@ -223,10 +225,10 @@ fn test_san_roundtrip_all_legal_moves() {
 }
 
 #[test]
-fn test_san_roundtrip_midgame() {
+fn san_roundtrip_midgame() {
     // Test roundtrip from a more complex position with captures, checks possible
     let fen = "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4";
-    let mut game = StdGame::new(fen, true).unwrap();
+    let mut game = Game8x8::new(fen, true).unwrap();
     let legal = game.legal_moves();
     for mv in &legal {
         let san = game.move_to_san(mv);
@@ -244,14 +246,11 @@ fn test_san_roundtrip_midgame() {
 }
 
 #[test]
-fn test_san_roundtrip_random_games() {
-    use rand::prelude::IndexedRandom;
-    use rand::SeedableRng;
-
+fn san_roundtrip_random_games() {
     let mut rng = rand::rngs::StdRng::seed_from_u64(123);
 
     for _game_num in 0..100 {
-        let mut game = StdGame::standard();
+        let mut game = Game8x8::standard();
         for _move_num in 0..100 {
             if game.is_over() {
                 break;

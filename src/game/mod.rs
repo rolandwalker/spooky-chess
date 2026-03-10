@@ -207,6 +207,19 @@ where
             .find_king(Color::Black)
             .ok_or("No black king found in FEN position".to_string())?;
 
+        debug_assert!(
+            board.get_piece(&white_king_pos)
+                == Some(Piece::new(crate::pieces::PieceType::King, Color::White)),
+            "white_king_pos {:?} does not point to a white king after FEN parse",
+            white_king_pos,
+        );
+        debug_assert!(
+            board.get_piece(&black_king_pos)
+                == Some(Piece::new(crate::pieces::PieceType::King, Color::Black)),
+            "black_king_pos {:?} does not point to a black king after FEN parse",
+            black_king_pos,
+        );
+
         Ok(Game {
             board,
             turn,

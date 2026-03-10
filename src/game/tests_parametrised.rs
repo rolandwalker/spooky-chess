@@ -433,5 +433,5 @@ board_size_tests!(
     ep_double_push_fen: "r3k4r/10/10/10/10/10/10/10/4P5/R3K4R w KQkq - 0 1",
     ep_double_push_lan: "e2e4",
     ep_double_push_target: Position::new(4, 2),
-    ep_roundtrip_fen: "r3k4r/10/10/10/3pP5/10/10/10/10/R3K4R w KQkq d7 0 1"
+    ep_roundtrip_fen: "r3k4r/10/10/3pP5/10/10/10/10/10/R3K4R w KQkq d8 0 1"
 );
