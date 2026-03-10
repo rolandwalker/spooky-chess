@@ -2,10 +2,12 @@ import random
 import time
 
 import chess
+import pytest
 
 import spooky_chess
 
 
+@pytest.mark.slow
 def test_compare_random_game_playout() -> None:
     def simulate_game_rust(moves_count: int) -> int:
         rust_game = spooky_chess.Game.standard()
