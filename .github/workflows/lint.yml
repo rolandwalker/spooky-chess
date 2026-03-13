@@ -18,7 +18,7 @@ jobs:
         with:
           submodules: true
 
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rustfmt, clippy
 
