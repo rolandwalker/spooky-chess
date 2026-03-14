@@ -3,6 +3,14 @@ from typing import Final
 WHITE: Final[int]
 BLACK: Final[int]
 TOTAL_INPUT_PLANES: Final[int]
+HISTORY_LENGTH: Final[int]
+PIECE_PLANES: Final[int]
+CONSTANT_PLANES: Final[int]
+NUM_DIRECTIONS: Final[int]
+NUM_KNIGHT_DELTAS: Final[int]
+NUM_UNDERPROMO_DIRECTIONS: Final[int]
+NUM_UNDERPROMO_PIECES: Final[int]
+NUM_PROMOTION_ORIENTATIONS: Final[int]
 
 class Board:
     def __init__(self, width: int, height: int, fen: str) -> None: ...

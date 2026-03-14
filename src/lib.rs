@@ -42,5 +42,13 @@ fn spooky_chess(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add("WHITE", Color::White as i8)?;
     m.add("BLACK", Color::Black as i8)?;
     m.add("TOTAL_INPUT_PLANES", encode::TOTAL_INPUT_PLANES)?;
+    m.add("HISTORY_LENGTH", encode::HISTORY_LENGTH)?;
+    m.add("PIECE_PLANES", encode::PIECE_PLANES)?;
+    m.add("CONSTANT_PLANES", encode::CONSTANT_PLANES)?;
+    m.add("NUM_DIRECTIONS", encode::NUM_DIRECTIONS)?;
+    m.add("NUM_KNIGHT_DELTAS", encode::NUM_KNIGHT_DELTAS)?;
+    m.add("NUM_UNDERPROMO_DIRECTIONS", encode::NUM_UNDERPROMO_DIRECTIONS)?;
+    m.add("NUM_UNDERPROMO_PIECES", encode::NUM_UNDERPROMO_PIECES)?;
+    m.add("NUM_PROMOTION_ORIENTATIONS", encode::NUM_PROMOTION_ORIENTATIONS)?;
     Ok(())
 }
