@@ -124,16 +124,11 @@ pub fn parse_id_line(line: &str) -> Option<(&str, String)> {
 #[hotpath::measure]
 pub fn parse_bestmove_line(line: &str) -> Option<(String, Option<String>)> {
     let line = line.trim();
-    if !line.starts_with("bestmove ") {
-        return None;
-    }
-    let tokens: Vec<&str> = line.split_whitespace().collect();
-    if tokens.len() < 2 {
-        return None;
-    }
-    let best = tokens[1].to_string();
-    let ponder = if tokens.len() >= 4 && tokens[2] == "ponder" {
-        Some(tokens[3].to_string())
+    let rest = line.strip_prefix("bestmove ")?;
+    let mut tokens = rest.split_ascii_whitespace();
+    let best = tokens.next()?.to_string();
+    let ponder = if tokens.next() == Some("ponder") {
+        tokens.next().map(|t| t.to_string())
     } else {
         None
     };
@@ -144,10 +139,8 @@ pub fn parse_bestmove_line(line: &str) -> Option<(String, Option<String>)> {
 #[hotpath::measure]
 pub fn parse_info_line(line: &str) -> Option<InfoLine> {
     let line = line.trim();
-    if !line.starts_with("info ") {
-        return None;
-    }
-    let tokens: Vec<&str> = line.split_whitespace().collect();
+    let rest = line.strip_prefix("info ")?;
+    let mut tokens = rest.split_ascii_whitespace();
 
     let mut depth = None;
     let mut score_cp = None;
@@ -157,64 +150,35 @@ pub fn parse_info_line(line: &str) -> Option<InfoLine> {
     let mut time_ms = None;
     let mut pv = Vec::new();
 
-    let mut i = 1; // skip "info"
-    while i < tokens.len() {
-        match tokens[i] {
+    while let Some(token) = tokens.next() {
+        match token {
             "depth" => {
-                i += 1;
-                if i < tokens.len() {
-                    depth = tokens[i].parse().ok();
-                }
+                depth = tokens.next().and_then(|t| t.parse().ok());
             }
-            "score" => {
-                i += 1;
-                if i < tokens.len() {
-                    match tokens[i] {
-                        "cp" => {
-                            i += 1;
-                            if i < tokens.len() {
-                                score_cp = tokens[i].parse().ok();
-                            }
-                        }
-                        "mate" => {
-                            i += 1;
-                            if i < tokens.len() {
-                                score_mate = tokens[i].parse().ok();
-                            }
-                        }
-                        _ => {}
-                    }
+            "score" => match tokens.next() {
+                Some("cp") => {
+                    score_cp = tokens.next().and_then(|t| t.parse().ok());
                 }
-            }
+                Some("mate") => {
+                    score_mate = tokens.next().and_then(|t| t.parse().ok());
+                }
+                _ => {}
+            },
             "nodes" => {
-                i += 1;
-                if i < tokens.len() {
-                    nodes = tokens[i].parse().ok();
-                }
+                nodes = tokens.next().and_then(|t| t.parse().ok());
             }
             "nps" => {
-                i += 1;
-                if i < tokens.len() {
-                    nps = tokens[i].parse().ok();
-                }
+                nps = tokens.next().and_then(|t| t.parse().ok());
             }
             "time" => {
-                i += 1;
-                if i < tokens.len() {
-                    time_ms = tokens[i].parse().ok();
-                }
+                time_ms = tokens.next().and_then(|t| t.parse().ok());
             }
             "pv" => {
-                i += 1;
-                while i < tokens.len() {
-                    pv.push(tokens[i].to_string());
-                    i += 1;
-                }
+                pv = tokens.map(|t| t.to_string()).collect();
                 break;
             }
             _ => {}
         }
-        i += 1;
     }
 
     Some(InfoLine {
