@@ -126,6 +126,18 @@ impl PyUciEngine {
         self.engine_mut()?.is_ready().map_err(uci_err_to_py)
     }
 
+    /// Tell the engine a new game is starting and reset to the standard position.
+    fn new_game(&mut self) -> PyResult<()> {
+        self.engine_mut()?.new_game().map_err(uci_err_to_py)
+    }
+
+    /// Tell the engine a new game is starting and initialize it from a FEN.
+    fn new_game_from_fen(&mut self, fen: &str) -> PyResult<()> {
+        self.engine_mut()?
+            .new_game_from_fen(fen)
+            .map_err(uci_err_to_py)
+    }
+
     /// Reset to standard starting position.
     fn set_position_startpos(&mut self) -> PyResult<()> {
         self.engine_mut()?.set_position_startpos();

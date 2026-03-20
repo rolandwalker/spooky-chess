@@ -4,8 +4,8 @@ pub use protocol::{InfoLine, SearchResult, UciError};
 
 use crate::color::Color;
 use crate::game::StandardGame;
-use crate::pgn::PgnGame;
 use crate::r#move::Move;
+use crate::pgn::PgnGame;
 
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
@@ -100,6 +100,22 @@ impl UciEngine {
                 return Ok(());
             }
         }
+    }
+
+    /// Tell the engine a new game is starting and reset internal state.
+    pub fn new_game(&mut self) -> Result<(), UciError> {
+        self.send_line("ucinewgame")?;
+        self.is_ready()?;
+        self.set_position_startpos();
+        Ok(())
+    }
+
+    /// Tell the engine a new game is starting and initialize it from a FEN.
+    pub fn new_game_from_fen(&mut self, fen: &str) -> Result<(), UciError> {
+        self.send_line("ucinewgame")?;
+        self.is_ready()?;
+        self.set_position_fen(fen)?;
+        Ok(())
     }
 
     /// Reset the internal game to the standard starting position.

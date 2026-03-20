@@ -470,12 +470,10 @@ fn test_stockfish_on_example_pgns() {
 
 /// Verify stockfish's bestmove is legal at every position in a single game.
 /// Returns the number of positions checked.
-fn replay_one_game(label: &str, pgn_game: &PgnGame) -> usize {
-    let mut engine = UciEngine::new("stockfish", &[]).expect("Failed to create UCI engine");
-    engine.set_option("Threads", "1").expect("set Threads");
-    engine.set_option("Hash", "16").expect("set Hash");
-    engine.is_ready().expect("is_ready after setoption");
-
+fn replay_one_game(engine: &mut UciEngine, label: &str, pgn_game: &PgnGame) -> usize {
+    engine
+        .new_game()
+        .unwrap_or_else(|e| panic!("{}: new_game failed: {}", label, e));
     if let Some(fen) = pgn_game.headers.get("FEN") {
         engine
             .set_position_fen(fen)
@@ -506,12 +504,13 @@ fn replay_one_game(label: &str, pgn_game: &PgnGame) -> usize {
         assert!(ok, "{} move {}: '{}' was not a legal move", label, mi, lan);
     }
 
-    engine.quit().expect("quit failed");
     pgn_game.moves.len()
 }
 
 /// Replay every game from the lichess PGN corpus with stockfish at depth 4,
 /// using all available cores via work-stealing.
+///
+/// The run stops after the first 1,000,000 games to keep the ignored test bounded.
 ///
 /// This test is ignored by default because the lichess directory contains
 /// millions of games. Run it explicitly with:
@@ -521,6 +520,7 @@ fn replay_one_game(label: &str, pgn_game: &PgnGame) -> usize {
 #[ignore]
 fn test_stockfish_on_lichess_pgns() {
     skip_if_no_stockfish!();
+    const MAX_GAMES: usize = 1_000_000;
 
     let pgn_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("pgn")
@@ -546,6 +546,7 @@ fn test_stockfish_on_lichess_pgns() {
     let total_games = Arc::new(AtomicUsize::new(0));
     let total_positions = Arc::new(AtomicUsize::new(0));
     let parse_errors = Arc::new(AtomicUsize::new(0));
+    let scheduled_games = Arc::new(AtomicUsize::new(0));
 
     // Spawn worker threads that parse and replay games from the queue.
     let workers: Vec<_> = (0..n_threads)
@@ -556,7 +557,19 @@ fn test_stockfish_on_lichess_pgns() {
             let total_positions = Arc::clone(&total_positions);
             let parse_errors = Arc::clone(&parse_errors);
             std::thread::spawn(move || {
+                let mut engine =
+                    UciEngine::new("stockfish", &[]).expect("Failed to create UCI engine");
+                engine.set_option("Threads", "1").expect("set Threads");
+                engine.set_option("Hash", "16").expect("set Hash");
+                engine.is_ready().expect("is_ready after setoption");
+
                 loop {
+                    if total_games.load(Ordering::Relaxed) >= MAX_GAMES
+                        && queue.lock().expect("poisoned").is_empty()
+                    {
+                        break;
+                    }
+
                     let item = queue.lock().expect("poisoned").pop();
                     match item {
                         Some((label, raw_pgn)) => {
@@ -568,27 +581,32 @@ fn test_stockfish_on_lichess_pgns() {
                                     continue;
                                 }
                             };
-                            let positions = replay_one_game(&label, &game);
+                            let positions = replay_one_game(&mut engine, &label, &game);
                             total_positions.fetch_add(positions, Ordering::Relaxed);
                             let g = total_games.fetch_add(1, Ordering::Relaxed) + 1;
-                            if g % 100 == 0 {
+                            if g % 1000 == 0 {
                                 eprintln!(
                                     "  {} games done, {} positions",
                                     g,
                                     total_positions.load(Ordering::Relaxed),
                                 );
                             }
+                            if g >= MAX_GAMES {
+                                done_loading.store(true, Ordering::Relaxed);
+                            }
                         }
                         None if done_loading.load(Ordering::Relaxed) => break,
                         None => std::thread::yield_now(),
                     }
                 }
+
+                engine.quit().expect("quit failed");
             })
         })
         .collect();
 
     // Producer: read PGN files, split on blank lines into individual game texts.
-    for path in &files {
+    'files: for path in &files {
         let filename = path.file_name().unwrap().to_string_lossy().to_string();
         let content = std::fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("failed to read {}: {}", filename, e));
@@ -633,6 +651,12 @@ fn test_stockfish_on_lichess_pgns() {
 
         let raw_games_count = raw_games.len();
         for (gi, raw_text) in raw_games.into_iter().enumerate() {
+            let scheduled = scheduled_games.fetch_add(1, Ordering::Relaxed);
+            if scheduled >= MAX_GAMES {
+                scheduled_games.fetch_sub(1, Ordering::Relaxed);
+                done_loading.store(true, Ordering::Relaxed);
+                break 'files;
+            }
             let label = format!("{}[game {}]", filename, gi);
             loop {
                 let mut q = queue.lock().expect("poisoned");
@@ -655,11 +679,12 @@ fn test_stockfish_on_lichess_pgns() {
     }
 
     eprintln!(
-        "Lichess replay complete: {} positions across {} games from {} files ({} threads, {} parse errors)",
+        "Lichess replay complete: {} positions across {} games from {} files ({} threads, {} parse errors, cap {})",
         total_positions.load(Ordering::Relaxed),
         total_games.load(Ordering::Relaxed),
         files.len(),
         n_threads,
         parse_errors.load(Ordering::Relaxed),
+        MAX_GAMES,
     );
 }

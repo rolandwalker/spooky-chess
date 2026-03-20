@@ -80,6 +80,26 @@ def test_set_position_startpos() -> None:
 
 
 @needs_stockfish
+def test_new_game() -> None:
+    engine = spooky_chess.UciEngine("stockfish")
+    engine.make_move_lan("e2e4")
+    engine.new_game()
+    assert engine.make_move_lan("e2e4")
+    result = engine.go_depth(5)
+    assert len(result.best_move_lan) >= 4
+
+
+@needs_stockfish
+def test_new_game_from_fen() -> None:
+    engine = spooky_chess.UciEngine("stockfish")
+    engine.make_move_lan("e2e4")
+    engine.new_game_from_fen("rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq c6 0 2")
+    assert engine.make_move_lan("g1f3")
+    result = engine.go_depth(5)
+    assert len(result.best_move_lan) >= 4
+
+
+@needs_stockfish
 def test_engine_author() -> None:
     engine = spooky_chess.UciEngine("stockfish")
     assert engine.engine_author() is not None
