@@ -316,7 +316,7 @@ impl PyUciEngine {
             .collect())
     }
 
-    fn legal_moves_for_position(&mut self, col: usize, row: usize) -> PyResult<Vec<PyMove>> {
+    fn legal_moves_for_position(&mut self, col: u8, row: u8) -> PyResult<Vec<PyMove>> {
         let pos = Position::new(col, row);
         Ok(self
             .engine_mut()?
@@ -360,7 +360,7 @@ impl PyUciEngine {
         Ok(self.engine()?.height())
     }
 
-    fn get_piece(&self, col: usize, row: usize) -> PyResult<Option<PyPiece>> {
+    fn get_piece(&self, col: u8, row: u8) -> PyResult<Option<PyPiece>> {
         let pos = Position::new(col, row);
         Ok(self
             .engine()?

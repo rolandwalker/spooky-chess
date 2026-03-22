@@ -53,12 +53,12 @@ impl PyBoard {
         dispatch_board!(&self.inner, b => b.height())
     }
 
-    pub fn get_piece(&self, col: usize, row: usize) -> Option<PyPiece> {
+    pub fn get_piece(&self, col: u8, row: u8) -> Option<PyPiece> {
         let pos = Position::new(col, row);
         dispatch_board!(&self.inner, b => b.get_piece(&pos).map(|p| PyPiece { piece: p }))
     }
 
-    pub fn set_piece(&mut self, col: usize, row: usize, piece: Option<PyPiece>) {
+    pub fn set_piece(&mut self, col: u8, row: u8, piece: Option<PyPiece>) {
         let pos = Position::new(col, row);
         dispatch_board!(&mut self.inner, b => b.set_piece(&pos, piece.map(|p| p.piece)))
     }

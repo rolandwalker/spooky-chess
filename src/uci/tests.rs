@@ -306,7 +306,10 @@ fn test_search_result_has_info() {
     let mut engine = UciEngine::new("stockfish", &[]).expect("Failed to create UCI engine");
     let result = engine.go_depth(10).expect("go depth failed");
     assert!(!result.info.is_empty());
-    let last = result.info.last().unwrap();
+    let last = result
+        .info
+        .last()
+        .expect("search result should contain at least one info line");
     assert!(last.depth.is_some());
     assert!(last.score_cp.is_some() || last.score_mate.is_some());
 }
@@ -380,7 +383,10 @@ fn replay_pgns_with_stockfish(files: &[std::path::PathBuf]) {
     let mut total_games = 0usize;
 
     for path in files {
-        let filename = path.file_name().unwrap().to_string_lossy();
+        let filename = path
+            .file_name()
+            .expect("PGN path should have a filename")
+            .to_string_lossy();
         let content = std::fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("failed to read {}: {}", filename, e));
 
@@ -397,7 +403,7 @@ fn replay_pgns_with_stockfish(files: &[std::path::PathBuf]) {
 
             // If the PGN has a FEN header, start from that position.
             if let Some(fen) = pgn_game.headers.get("FEN") {
-                engine.set_position_fen(&fen).unwrap_or_else(|e| {
+                engine.set_position_fen(fen).unwrap_or_else(|e| {
                     panic!("{}[game {}]: set_position_fen failed: {}", filename, gi, e)
                 });
             }
@@ -584,7 +590,7 @@ fn test_stockfish_on_lichess_pgns() {
                             let positions = replay_one_game(&mut engine, &label, &game);
                             total_positions.fetch_add(positions, Ordering::Relaxed);
                             let g = total_games.fetch_add(1, Ordering::Relaxed) + 1;
-                            if g % 1000 == 0 {
+                            if g.is_multiple_of(1000) {
                                 eprintln!(
                                     "  {} games done, {} positions",
                                     g,
@@ -607,7 +613,11 @@ fn test_stockfish_on_lichess_pgns() {
 
     // Producer: read PGN files, split on blank lines into individual game texts.
     'files: for path in &files {
-        let filename = path.file_name().unwrap().to_string_lossy().to_string();
+        let filename = path
+            .file_name()
+            .expect("PGN path should have a filename")
+            .to_string_lossy()
+            .to_string();
         let content = std::fs::read_to_string(path)
             .unwrap_or_else(|e| panic!("failed to read {}: {}", filename, e));
 
@@ -635,11 +645,7 @@ fn test_stockfish_on_lichess_pgns() {
                     current.push('\n');
                     continue;
                 }
-                if trimmed.starts_with('[') && trimmed.ends_with(']') {
-                    in_movetext = false;
-                } else {
-                    in_movetext = true;
-                }
+                in_movetext = !(trimmed.starts_with('[') && trimmed.ends_with(']'));
                 current.push_str(line);
                 current.push('\n');
             }

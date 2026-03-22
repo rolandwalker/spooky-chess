@@ -229,7 +229,7 @@ macro_rules! board_size_tests {
                     let legal = game.legal_moves();
                     let castle = legal.iter().find(|m| {
                         m.src == Position::new($king_col, 0)
-                            && m.dst == Position::new(king_dst_col, 0)
+                            && m.dst == Position::from_usize(king_dst_col, 0)
                             && m.flags.contains(MoveFlags::CASTLE)
                     });
                     assert!(
@@ -241,11 +241,11 @@ macro_rules! board_size_tests {
                     assert!(game.make_move(&mv));
 
                     assert_eq!(
-                        game.board().get_piece(&Position::new(king_dst_col, 0)).expect("castling: king must exist at destination after castling").piece_type,
+                        game.board().get_piece(&Position::from_usize(king_dst_col, 0)).expect("castling: king must exist at destination after castling").piece_type,
                         PieceType::King,
                     );
                     assert_eq!(
-                        game.board().get_piece(&Position::new(rook_dst_col, 0)).expect("castling: rook must exist at destination after castling").piece_type,
+                        game.board().get_piece(&Position::from_usize(rook_dst_col, 0)).expect("castling: rook must exist at destination after castling").piece_type,
                         PieceType::Rook,
                     );
                     assert!(game.board().get_piece(&Position::new($king_col, 0)).is_none());

@@ -2,39 +2,50 @@ use std::fmt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Position {
-    pub col: usize,
-    pub row: usize,
+    pub col: u8,
+    pub row: u8,
 }
 
 #[hotpath::measure_all]
 impl Position {
-    pub fn new(col: usize, row: usize) -> Self {
+    pub fn new(col: u8, row: u8) -> Self {
         Position { col, row }
+    }
+
+    pub(crate) fn from_usize(col: usize, row: usize) -> Self {
+        Position {
+            col: u8::try_from(col).expect("Position::from_usize: col exceeds u8"),
+            row: u8::try_from(row).expect("Position::from_usize: row exceeds u8"),
+        }
     }
 
     #[inline]
     pub fn is_valid(&self, width: usize, height: usize) -> bool {
-        self.col < width && self.row < height
+        usize::from(self.col) < width && usize::from(self.row) < height
     }
 
     #[inline]
     pub fn to_index(&self, width: usize) -> usize {
-        self.row * width + self.col
+        usize::from(self.row) * width + usize::from(self.col)
     }
 
     #[inline]
     pub fn from_index(index: usize, width: usize) -> Position {
         Position {
-            col: index % width,
-            row: index / width,
+            col: u8::try_from(index % width).expect("Position::from_index: col exceeds u8"),
+            row: u8::try_from(index / width).expect("Position::from_index: row exceeds u8"),
         }
     }
 
     pub fn to_algebraic(&self) -> String {
         if self.col < 26 {
-            format!("{}{}", (b'a' + self.col as u8) as char, self.row + 1)
+            format!(
+                "{}{}",
+                (b'a' + self.col) as char,
+                usize::from(self.row) + 1
+            )
         } else {
-            format!("{}-{}", self.col, self.row + 1)
+            format!("{}-{}", self.col, usize::from(self.row) + 1)
         }
     }
 
@@ -47,13 +58,13 @@ impl Position {
         let row_str = &s[1..];
 
         let col = if col_char.is_ascii_lowercase() {
-            (col_char as u8 - b'a') as usize
+            col_char as u8 - b'a'
         } else {
             return Err("Invalid file character".to_string());
         };
 
         let row = row_str
-            .parse::<usize>()
+            .parse::<u8>()
             .map_err(|_| "Invalid row number".to_string())?
             .saturating_sub(1);
 

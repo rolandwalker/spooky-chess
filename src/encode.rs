@@ -252,7 +252,7 @@ fn fill_chess_planes<const W: usize, const H: usize>(
 #[hotpath::measure]
 pub fn encode_action(move_: &Move, width: usize, height: usize) -> Option<usize> {
     debug_assert!(
-        move_.src.col < width && move_.src.row < height,
+        usize::from(move_.src.col) < width && usize::from(move_.src.row) < height,
         "encode_action: move src ({},{}) out of bounds for {}x{} board",
         move_.src.col,
         move_.src.row,
@@ -260,7 +260,7 @@ pub fn encode_action(move_: &Move, width: usize, height: usize) -> Option<usize>
         height,
     );
     debug_assert!(
-        move_.dst.col < width && move_.dst.row < height,
+        usize::from(move_.dst.col) < width && usize::from(move_.dst.row) < height,
         "encode_action: move dst ({},{}) out of bounds for {}x{} board",
         move_.dst.col,
         move_.dst.row,
@@ -269,7 +269,7 @@ pub fn encode_action(move_: &Move, width: usize, height: usize) -> Option<usize>
     );
     let plane = encode_move_plane(move_, width, height)?;
     let board_size = width * height;
-    let src_index = move_.src.row * width + move_.src.col;
+    let src_index = usize::from(move_.src.row) * width + usize::from(move_.src.col);
     Some(plane * board_size + src_index)
 }
 
@@ -870,13 +870,13 @@ mod tests {
                             let decoded_src_row = src_index / width;
                             assert_eq!(
                                 decoded_src_col,
-                                move_.src.col,
+                                usize::from(move_.src.col),
                                 "Action roundtrip: src_col mismatch for move {}",
                                 move_.to_lan()
                             );
                             assert_eq!(
                                 decoded_src_row,
-                                move_.src.row,
+                                usize::from(move_.src.row),
                                 "Action roundtrip: src_row mismatch for move {}",
                                 move_.to_lan()
                             );

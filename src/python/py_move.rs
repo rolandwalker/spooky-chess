@@ -15,7 +15,7 @@ pub struct PyMove {
 #[pymethods]
 impl PyMove {
     #[staticmethod]
-    pub fn from_rowcol(src_col: usize, src_row: usize, dst_col: usize, dst_row: usize) -> Self {
+    pub fn from_rowcol(src_col: u8, src_row: u8, dst_col: u8, dst_row: u8) -> Self {
         PyMove {
             move_: Move::from_position(
                 Position::new(src_col, src_row),
@@ -38,11 +38,11 @@ impl PyMove {
         }
     }
 
-    pub fn src_square(&self) -> (usize, usize) {
+    pub fn src_square(&self) -> (u8, u8) {
         (self.move_.src.col, self.move_.src.row)
     }
 
-    pub fn dst_square(&self) -> (usize, usize) {
+    pub fn dst_square(&self) -> (u8, u8) {
         (self.move_.dst.col, self.move_.dst.row)
     }
 

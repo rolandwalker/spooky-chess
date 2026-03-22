@@ -125,11 +125,11 @@ impl CastlingRights {
         let last_row = height - 1;
         if pos.col == 0 && pos.row == 0 {
             self.white_queenside = false;
-        } else if pos.col == last_col && pos.row == 0 {
+        } else if usize::from(pos.col) == last_col && pos.row == 0 {
             self.white_kingside = false;
-        } else if pos.col == 0 && pos.row == last_row {
+        } else if pos.col == 0 && usize::from(pos.row) == last_row {
             self.black_queenside = false;
-        } else if pos.col == last_col && pos.row == last_row {
+        } else if usize::from(pos.col) == last_col && usize::from(pos.row) == last_row {
             self.black_kingside = false;
         }
     }

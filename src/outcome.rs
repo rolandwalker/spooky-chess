@@ -1,6 +1,9 @@
 use crate::color::Color;
 use crate::r#move::Move;
+use smallvec::SmallVec;
 use std::fmt;
+
+pub type MoveList = SmallVec<[Move; 256]>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum GameOutcome {
@@ -13,10 +16,11 @@ pub enum GameOutcome {
     Other,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum TurnState {
     Over(GameOutcome),
-    Ongoing(Vec<Move>),
+    Ongoing(MoveList),
 }
 
 #[hotpath::measure_all]

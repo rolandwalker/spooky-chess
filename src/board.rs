@@ -180,7 +180,7 @@ where
         if !pos.is_valid(W, H) {
             return None;
         }
-        let idx = Self::index(pos.col, pos.row);
+        let idx = Self::index(usize::from(pos.col), usize::from(pos.row));
         let pt = self.piece_type_at(idx)?;
         debug_assert!(
             self.white.get(idx) || self.black.get(idx),
@@ -224,7 +224,7 @@ where
             W,
             H,
         );
-        let idx = Self::index(pos.col, pos.row);
+        let idx = Self::index(usize::from(pos.col), usize::from(pos.row));
         debug_assert!(
             self.piece_type_bb(piece.piece_type).get(idx),
             "remove_piece: no {:?} at ({}, {})",
@@ -254,7 +254,7 @@ where
             W,
             H,
         );
-        let idx = Self::index(pos.col, pos.row);
+        let idx = Self::index(usize::from(pos.col), usize::from(pos.row));
         debug_assert!(
             !self.occupied().get(idx),
             "place_piece: square ({}, {}) is already occupied",
@@ -283,7 +283,7 @@ where
             let mut empty_count = 0;
 
             for col in 0..W {
-                let pos = Position::new(col, row);
+                let pos = Position::from_usize(col, row);
                 if let Some(piece) = self.get_piece(&pos) {
                     if empty_count > 0 {
                         fen.push_str(&empty_count.to_string());
@@ -349,7 +349,7 @@ where
                     if col >= W {
                         return Err("Invalid FEN: col index out of bounds".to_string());
                     }
-                    self.set_piece(&Position::new(col, row), Some(piece));
+                    self.set_piece(&Position::from_usize(col, row), Some(piece));
                     col += 1;
                 } else {
                     return Err(format!("Invalid FEN character: {}", c));
@@ -438,7 +438,7 @@ where
         for row in (0..H).rev() {
             write!(f, "{:2} ", row + 1)?;
             for col in 0..W {
-                let pos = Position::new(col, row);
+                let pos = Position::from_usize(col, row);
                 if let Some(piece) = self.get_piece(&pos) {
                     write!(f, "{} ", piece.to_char())?;
                 } else {

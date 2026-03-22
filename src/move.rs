@@ -85,7 +85,7 @@ impl Move {
         if self.dst.col > self.src.col {
             // Kingside
             (
-                Position::new(board_width - 1, self.src.row),
+                Position::from_usize(board_width - 1, usize::from(self.src.row)),
                 Position::new(self.dst.col - 1, self.dst.row),
             )
         } else {

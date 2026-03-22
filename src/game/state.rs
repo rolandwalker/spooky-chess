@@ -221,17 +221,17 @@ where
                     let same_rank = ambiguous.iter().any(|m| m.src.row == mv.src.row);
 
                     if !same_file {
-                        san.push((b'a' + mv.src.col as u8) as char);
+                        san.push((b'a' + mv.src.col) as char);
                     } else if !same_rank {
                         san.push_str(&(mv.src.row + 1).to_string());
                     } else {
-                        san.push((b'a' + mv.src.col as u8) as char);
+                        san.push((b'a' + mv.src.col) as char);
                         san.push_str(&(mv.src.row + 1).to_string());
                     }
                 }
             } else if mv.flags.contains(MoveFlags::CAPTURE) {
                 // Pawn captures: prefix with source file
-                san.push((b'a' + mv.src.col as u8) as char);
+                san.push((b'a' + mv.src.col) as char);
             }
 
             if mv.flags.contains(MoveFlags::CAPTURE) {
@@ -357,12 +357,12 @@ where
                     return false;
                 }
                 if let Some(f) = file_hint
-                    && m.src.col != f
+                    && usize::from(m.src.col) != f
                 {
                     return false;
                 }
                 if let Some(r) = rank_hint
-                    && m.src.row != r
+                    && usize::from(m.src.row) != r
                 {
                     return false;
                 }

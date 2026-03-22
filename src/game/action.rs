@@ -29,8 +29,8 @@ where
             return None;
         }
 
-        let src = Position::new(src_col, src_row);
-        let dst = Position::new(dst_col, dst_row);
+        let src = Position::from_usize(src_col, src_row);
+        let dst = Position::from_usize(dst_col, dst_row);
         let piece = self.board.get_piece(&src)?;
 
         let mut flags = self.infer_move_flags(&src, &dst, &piece);

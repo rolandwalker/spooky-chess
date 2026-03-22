@@ -5,7 +5,7 @@ pub use protocol::{InfoLine, SearchResult, UciError};
 use crate::color::Color;
 use crate::game::StandardGame;
 use crate::r#move::Move;
-use crate::outcome::{GameOutcome, TurnState};
+use crate::outcome::{GameOutcome, MoveList, TurnState};
 use crate::pgn::PgnGame;
 use crate::pieces::Piece;
 use crate::position::Position;
@@ -289,15 +289,15 @@ impl UciEngine {
     }
 
     /// Get legal moves from the current position.
-    pub fn legal_moves(&mut self) -> Vec<Move> {
+    pub fn legal_moves(&mut self) -> MoveList {
         self.game.legal_moves()
     }
 
-    pub fn pseudo_legal_moves(&self) -> Vec<Move> {
+    pub fn pseudo_legal_moves(&self) -> MoveList {
         self.game.pseudo_legal_moves()
     }
 
-    pub fn legal_moves_for_position(&mut self, src: &Position) -> Vec<Move> {
+    pub fn legal_moves_for_position(&mut self, src: &Position) -> MoveList {
         self.game.legal_moves_for_position(src)
     }
 

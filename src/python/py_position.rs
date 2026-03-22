@@ -12,17 +12,17 @@ pub struct PyPosition {
 #[pymethods]
 impl PyPosition {
     #[new]
-    pub fn new(col: usize, row: usize) -> Self {
+    pub fn new(col: u8, row: u8) -> Self {
         PyPosition {
             pos: Position::new(col, row),
         }
     }
 
-    pub fn col(&self) -> usize {
+    pub fn col(&self) -> u8 {
         self.pos.col
     }
 
-    pub fn row(&self) -> usize {
+    pub fn row(&self) -> u8 {
         self.pos.row
     }
 

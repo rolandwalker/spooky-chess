@@ -1,6 +1,7 @@
 use crate::bitboard::Bitboard;
 use crate::color::Color;
 use crate::r#move::{Move, MoveFlags};
+use crate::outcome::MoveList;
 use crate::pieces::{Piece, PieceType};
 use crate::position::Position;
 
@@ -19,7 +20,7 @@ where
         };
 
         // Generate pseudo-legal moves only for the source piece
-        let mut pseudo_legal = Vec::new();
+        let mut pseudo_legal = MoveList::new();
         self.generate_pseudo_legal_moves_for_piece_into(&mv.src, &piece, &mut pseudo_legal);
 
         // Find the matching pseudo-legal move (which has correct flags/promotion)
@@ -160,8 +161,8 @@ where
         !in_check
     }
 
-    pub fn legal_moves(&mut self) -> Vec<Move> {
-        let mut moves = Vec::new();
+    pub fn legal_moves(&mut self) -> MoveList {
+        let mut moves = MoveList::new();
         self.for_each_legal_move(|mv| {
             moves.push(mv);
             false
@@ -207,9 +208,9 @@ where
         // King castling
         // -----------------------------------------------------------------
         if self.castling_enabled && W >= 5 && info.num_checkers == 0 {
-            let row = king_pos.row;
+            let row = usize::from(king_pos.row);
             if self.castling_rights.has_kingside(color) {
-                let king_dst_col = king_pos.col + 2;
+                let king_dst_col = usize::from(king_pos.col) + 2;
                 let rook_col = W - 1;
                 if king_dst_col < rook_col
                     && let Some(mv) =
@@ -220,7 +221,7 @@ where
                 }
             }
             if self.castling_rights.has_queenside(color) && king_pos.col >= 2 {
-                let king_dst_col = king_pos.col - 2;
+                let king_dst_col = usize::from(king_pos.col) - 2;
                 if let Some(mv) = self.try_castle_pin_aware(&king_pos, row, king_dst_col, 0, &info)
                     && f(mv)
                 {
@@ -291,7 +292,7 @@ where
                     let legal_push = push & move_mask;
                     for pidx in legal_push.iter_ones() {
                         let dst = Position::from_index(pidx, W);
-                        if pos.row == promo_row {
+                        if usize::from(pos.row) == promo_row {
                             for promo_pt in &PieceType::PROMOTABLE {
                                 if f(Move::from_position_with_promotion(
                                     pos,
@@ -308,7 +309,7 @@ where
                     }
 
                     // Double push
-                    if pos.row == start_row && !push.is_empty() {
+                    if usize::from(pos.row) == start_row && !push.is_empty() {
                         let double = geo.pawn_push(push, is_white).andnot(occupied) & move_mask;
                         for pidx in double.iter_ones() {
                             let dst = Position::from_index(pidx, W);
@@ -323,7 +324,7 @@ where
                     let captures = attacks & enemy & move_mask;
                     for cidx in captures.iter_ones() {
                         let dst = Position::from_index(cidx, W);
-                        if pos.row == promo_row {
+                        if usize::from(pos.row) == promo_row {
                             for promo_pt in &PieceType::PROMOTABLE {
                                 if f(Move::from_position_with_promotion(
                                     pos,
@@ -407,8 +408,8 @@ where
         false
     }
 
-    pub fn pseudo_legal_moves(&self) -> Vec<Move> {
-        let mut moves = Vec::new();
+    pub fn pseudo_legal_moves(&self) -> MoveList {
+        let mut moves = MoveList::new();
 
         for (pos, piece) in self.board.pieces_iter(self.turn) {
             self.generate_pseudo_legal_moves_for_piece_into(&pos, &piece, &mut moves);
@@ -417,9 +418,9 @@ where
         moves
     }
 
-    pub fn legal_moves_for_position(&mut self, src: &Position) -> Vec<Move> {
-        let mut moves = Vec::new();
-        let mut pseudo_legal = Vec::new();
+    pub fn legal_moves_for_position(&mut self, src: &Position) -> MoveList {
+        let mut moves = MoveList::new();
+        let mut pseudo_legal = MoveList::new();
 
         if let Some(piece) = self.board.get_piece(src) {
             if piece.color != self.turn {
@@ -444,7 +445,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         match piece.piece_type {
             PieceType::Pawn => self.generate_pseudo_legal_pawn_moves_into(src, piece, moves),
@@ -460,7 +461,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let occupied = self.board.occupied();
         let enemy = self.board.color_bb(piece.color.opposite());
@@ -477,7 +478,7 @@ where
         let push = geo.pawn_push(src_bb, is_white).andnot(occupied);
         for idx in push.iter_ones() {
             let dst = Position::from_index(idx, W);
-            if src.row == promo_row {
+            if usize::from(src.row) == promo_row {
                 for pt in &PieceType::PROMOTABLE {
                     moves.push(Move::from_position_with_promotion(
                         *src,
@@ -492,7 +493,7 @@ where
         }
 
         // Double push: forward two squares from start row, both squares must be empty
-        if src.row == start_row && !push.is_empty() {
+        if usize::from(src.row) == start_row && !push.is_empty() {
             let double = geo.pawn_push(push, is_white).andnot(occupied);
             for idx in double.iter_ones() {
                 let dst = Position::from_index(idx, W);
@@ -505,7 +506,7 @@ where
         let captures = attacks & enemy;
         for idx in captures.iter_ones() {
             let dst = Position::from_index(idx, W);
-            if src.row == promo_row {
+            if usize::from(src.row) == promo_row {
                 for pt in &PieceType::PROMOTABLE {
                     moves.push(Move::from_position_with_promotion(
                         *src,
@@ -522,7 +523,7 @@ where
         // En passant
         if let Some(ep) = self.en_passant {
             debug_assert!(
-                ep.row == 2 || ep.row == H - 3,
+                ep.row == 2 || usize::from(ep.row) == H - 3,
                 "en passant square ({}, {}) is not on a valid row (expected row 2 or {})",
                 ep.col,
                 ep.row,
@@ -543,7 +544,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let own_color = self.board.color_bb(piece.color);
         let occupied = self.board.occupied();
@@ -566,7 +567,7 @@ where
         src: &Position,
         piece: &Piece,
         attacks: Bitboard<{ (W * H).div_ceil(64) }>,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let occupied = self.board.occupied();
         let own_color = self.board.color_bb(piece.color);
@@ -587,7 +588,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let geo = Self::geo();
         let occupied = self.board.occupied();
@@ -599,7 +600,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let geo = Self::geo();
         let occupied = self.board.occupied();
@@ -611,7 +612,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let geo = Self::geo();
         let occupied = self.board.occupied();
@@ -624,7 +625,7 @@ where
         &self,
         src: &Position,
         piece: &Piece,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         debug_assert!(
             *src == match piece.color {
@@ -653,12 +654,12 @@ where
 
         // Castling
         if self.castling_enabled && W >= 5 && !self.is_in_check(piece.color) {
-            let row = src.row;
+            let row = usize::from(src.row);
             let opponent = piece.color.opposite();
 
             // Kingside: king to col king+2, rook from last col to king+1
             if self.castling_rights.has_kingside(piece.color) {
-                let king_dst = src.col + 2;
+                let king_dst = usize::from(src.col) + 2;
                 let rook_col = W - 1;
                 if king_dst < rook_col {
                     self.try_generate_castle(src, row, king_dst, rook_col, opponent, moves);
@@ -667,7 +668,7 @@ where
 
             // Queenside: king to col king-2, rook from col 0 to king-1
             if self.castling_rights.has_queenside(piece.color) && src.col >= 2 {
-                let king_dst = src.col - 2;
+                let king_dst = usize::from(src.col) - 2;
                 self.try_generate_castle(src, row, king_dst, 0, opponent, moves);
             }
         }
@@ -683,15 +684,16 @@ where
         king_dst: usize,
         rook_col: usize,
         opponent: Color,
-        moves: &mut Vec<Move>,
+        moves: &mut MoveList,
     ) {
         let occupied = self.board.occupied();
 
         // All squares between king and rook must be empty
-        let (lo, hi) = if king_src.col < rook_col {
-            (king_src.col + 1, rook_col)
+        let king_src_col = usize::from(king_src.col);
+        let (lo, hi) = if king_src_col < rook_col {
+            (king_src_col + 1, rook_col)
         } else {
-            (rook_col + 1, king_src.col)
+            (rook_col + 1, king_src_col)
         };
         for col in lo..hi {
             if occupied.get(row * W + col) {
@@ -700,20 +702,20 @@ where
         }
 
         // All squares the king passes through (and lands on) must not be attacked
-        let (path_lo, path_hi) = if king_dst > king_src.col {
-            (king_src.col + 1, king_dst + 1)
+        let (path_lo, path_hi) = if king_dst > king_src_col {
+            (king_src_col + 1, king_dst + 1)
         } else {
-            (king_dst, king_src.col)
+            (king_dst, king_src_col)
         };
         for col in path_lo..path_hi {
-            if self.is_square_attacked(&Position::new(col, row), opponent) {
+            if self.is_square_attacked(&Position::from_usize(col, row), opponent) {
                 return;
             }
         }
 
         moves.push(Move::from_position(
             *king_src,
-            Position::new(king_dst, row),
+            Position::from_usize(king_dst, row),
             MoveFlags::CASTLE,
         ));
     }
@@ -731,10 +733,11 @@ where
         let occupied = self.board.occupied();
 
         // All squares between king and rook must be empty
-        let (lo, hi) = if king_src.col < rook_col {
-            (king_src.col + 1, rook_col)
+        let king_src_col = usize::from(king_src.col);
+        let (lo, hi) = if king_src_col < rook_col {
+            (king_src_col + 1, rook_col)
         } else {
-            (rook_col + 1, king_src.col)
+            (rook_col + 1, king_src_col)
         };
         for col in lo..hi {
             if occupied.get(row * W + col) {
@@ -743,10 +746,10 @@ where
         }
 
         // All squares the king passes through (and lands on) must not be attacked
-        let (path_lo, path_hi) = if king_dst > king_src.col {
-            (king_src.col + 1, king_dst + 1)
+        let (path_lo, path_hi) = if king_dst > king_src_col {
+            (king_src_col + 1, king_dst + 1)
         } else {
-            (king_dst, king_src.col)
+            (king_dst, king_src_col)
         };
         for col in path_lo..path_hi {
             if info.king_danger_squares.get(row * W + col) {
@@ -756,7 +759,7 @@ where
 
         Some(Move::from_position(
             *king_src,
-            Position::new(king_dst, row),
+            Position::from_usize(king_dst, row),
             MoveFlags::CASTLE,
         ))
     }

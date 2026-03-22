@@ -102,7 +102,7 @@ impl PyGame {
         })
     }
 
-    pub fn legal_moves_for_position(&mut self, col: usize, row: usize) -> Vec<PyMove> {
+    pub fn legal_moves_for_position(&mut self, col: u8, row: u8) -> Vec<PyMove> {
         let pos = Position::new(col, row);
         dispatch_game!(&mut self.inner, g => {
             g.legal_moves_for_position(&pos)
@@ -166,12 +166,12 @@ impl PyGame {
         dispatch_game!(&self.inner, g => g.board().height())
     }
 
-    pub fn get_piece(&self, col: usize, row: usize) -> Option<PyPiece> {
+    pub fn get_piece(&self, col: u8, row: u8) -> Option<PyPiece> {
         let pos = Position::new(col, row);
         dispatch_game!(&self.inner, g => g.get_piece(&pos).map(|p| PyPiece { piece: p }))
     }
 
-    pub fn set_piece(&mut self, col: usize, row: usize, piece: Option<PyPiece>) {
+    pub fn set_piece(&mut self, col: u8, row: u8, piece: Option<PyPiece>) {
         let pos = Position::new(col, row);
         dispatch_game!(&mut self.inner, g => g.set_piece(&pos, piece.map(|p| p.piece)))
     }
