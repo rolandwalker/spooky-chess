@@ -27,6 +27,18 @@ impl PyPgnGame {
         self.inner.headers.black().map(|s| s.to_string())
     }
 
+    pub fn event(&self) -> Option<String> {
+        self.inner.headers.event().map(|s| s.to_string())
+    }
+
+    pub fn site(&self) -> Option<String> {
+        self.inner.headers.site().map(|s| s.to_string())
+    }
+
+    pub fn date(&self) -> Option<String> {
+        self.inner.headers.date().map(|s| s.to_string())
+    }
+
     pub fn result(&self) -> String {
         self.inner.result.to_string()
     }

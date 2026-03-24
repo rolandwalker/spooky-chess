@@ -44,6 +44,16 @@ impl PyPiece {
         self.piece.color as i8
     }
 
+    #[getter]
+    pub fn is_white(&self) -> bool {
+        self.piece.color == Color::White
+    }
+
+    #[getter]
+    pub fn is_black(&self) -> bool {
+        self.piece.color == Color::Black
+    }
+
     pub fn symbol(&self) -> String {
         self.piece.to_char().to_string()
     }

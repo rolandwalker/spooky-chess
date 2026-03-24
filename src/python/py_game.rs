@@ -8,6 +8,7 @@ use super::py_position::PyPosition;
 use super::py_turn_state::PyTurnState;
 use crate::color::Color;
 use crate::encode;
+use crate::pieces::PieceType;
 use crate::position::Position;
 
 #[pyclass(name = "Game")]
@@ -199,6 +200,39 @@ impl PyGame {
     pub fn set_piece(&mut self, col: u8, row: u8, piece: Option<PyPiece>) {
         let pos = Position::new(col, row);
         dispatch_game!(&mut self.inner, g => g.set_piece(&pos, piece.map(|p| p.piece)))
+    }
+
+    pub fn piece_count(&self, piece_type: &str, color: i8) -> PyResult<u8> {
+        let pt = piece_type
+            .chars()
+            .next()
+            .and_then(PieceType::from_char)
+            .ok_or_else(|| {
+                PyErr::new::<pyo3::exceptions::PyValueError, _>("Invalid piece type")
+            })?;
+        let c = Color::from_int(color).ok_or_else(|| {
+            PyErr::new::<pyo3::exceptions::PyValueError, _>(
+                "color must be 1 (white) or -1 (black)",
+            )
+        })?;
+        Ok(dispatch_game!(&self.inner, g => g.piece_counts().get(pt, c)))
+    }
+
+    pub fn __getitem__(&self, key: &Bound<'_, PyAny>) -> PyResult<Option<PyPiece>> {
+        // Accept either a string like "e4" or a tuple like (col, row)
+        if let Ok(s) = key.extract::<String>() {
+            let pos = Position::from_algebraic(&s).map_err(|e| {
+                PyErr::new::<pyo3::exceptions::PyKeyError, _>(e)
+            })?;
+            Ok(dispatch_game!(&self.inner, g => g.get_piece(&pos).map(|p| PyPiece { piece: p })))
+        } else if let Ok((col, row)) = key.extract::<(u8, u8)>() {
+            let pos = Position::new(col, row);
+            Ok(dispatch_game!(&self.inner, g => g.get_piece(&pos).map(|p| PyPiece { piece: p })))
+        } else {
+            Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
+                "key must be a string (e.g. \"e4\") or a (col, row) tuple",
+            ))
+        }
     }
 
     pub fn legal_action_indices(&mut self) -> Vec<usize> {
