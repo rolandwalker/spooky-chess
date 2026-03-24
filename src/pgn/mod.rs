@@ -143,6 +143,52 @@ impl PgnGame {
             Ok(StandardGame::standard())
         }
     }
+
+    pub fn to_pgn(&self) -> String {
+        let mut out = String::new();
+
+        // Headers
+        for (key, value) in &self.headers.pairs {
+            out.push_str(&format!("[{} \"{}\"]\n", key, value));
+        }
+        out.push('\n');
+
+        // Replay moves to produce SAN
+        let mut game = self
+            .starting_game()
+            .unwrap_or_else(|_| StandardGame::standard());
+        let mut col = 0;
+        for (i, mv) in self.moves.iter().enumerate() {
+            let mut token = String::new();
+            if i % 2 == 0 {
+                token.push_str(&format!("{}. ", i / 2 + 1));
+            }
+            token.push_str(&game.move_to_san(mv));
+            game.make_move(mv);
+
+            if col + token.len() + 1 > 80 && col > 0 {
+                out.push('\n');
+                col = 0;
+            } else if col > 0 {
+                out.push(' ');
+                col += 1;
+            }
+            col += token.len();
+            out.push_str(&token);
+        }
+
+        // Result
+        let result = self.result.to_string();
+        if col + result.len() + 1 > 80 && col > 0 {
+            out.push('\n');
+        } else if col > 0 {
+            out.push(' ');
+        }
+        out.push_str(&result);
+        out.push('\n');
+
+        out
+    }
 }
 
 // ---------------------------------------------------------------------------

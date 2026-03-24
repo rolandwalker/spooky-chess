@@ -6,7 +6,7 @@ use crate::r#move::{Move, MoveFlags};
 use crate::position::Position;
 
 #[pyclass(name = "Move")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PyMove {
     pub(super) move_: Move,
 }
@@ -89,10 +89,7 @@ impl PyMove {
     pub fn __hash__(&self) -> u64 {
         use std::hash::{Hash, Hasher};
         let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        self.move_.src.col.hash(&mut hasher);
-        self.move_.src.row.hash(&mut hasher);
-        self.move_.dst.col.hash(&mut hasher);
-        self.move_.dst.row.hash(&mut hasher);
+        self.move_.hash(&mut hasher);
         hasher.finish()
     }
 }

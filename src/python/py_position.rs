@@ -33,4 +33,15 @@ impl PyPosition {
     pub fn __repr__(&self) -> String {
         format!("Position({}, {})", self.pos.col, self.pos.row)
     }
+
+    pub fn __eq__(&self, other: &PyPosition) -> bool {
+        self.pos == other.pos
+    }
+
+    pub fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.pos.hash(&mut hasher);
+        hasher.finish()
+    }
 }

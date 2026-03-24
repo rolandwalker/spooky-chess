@@ -41,4 +41,11 @@ impl PyGameOutcome {
     pub fn __eq__(&self, other: &PyGameOutcome) -> bool {
         self.outcome == other.outcome
     }
+
+    pub fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.outcome.hash(&mut hasher);
+        hasher.finish()
+    }
 }

@@ -51,4 +51,15 @@ impl PyPiece {
     pub fn __repr__(&self) -> String {
         format!("Piece({:?}, {:?})", self.piece.piece_type, self.piece.color)
     }
+
+    pub fn __eq__(&self, other: &PyPiece) -> bool {
+        self.piece == other.piece
+    }
+
+    pub fn __hash__(&self) -> u64 {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.piece.hash(&mut hasher);
+        hasher.finish()
+    }
 }

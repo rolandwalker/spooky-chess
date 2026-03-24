@@ -11,8 +11,8 @@ pub struct PyPgnGame {
 
 #[pymethods]
 impl PyPgnGame {
-    pub fn headers(&self) -> Vec<(String, String)> {
-        self.inner.headers.pairs.clone()
+    pub fn headers(&self) -> std::collections::HashMap<String, String> {
+        self.inner.headers.pairs.iter().cloned().collect()
     }
 
     pub fn header(&self, key: &str) -> Option<String> {
@@ -57,6 +57,10 @@ impl PyPgnGame {
         PyGame {
             inner: GameInner::W8H8(self.inner.final_game.clone()),
         }
+    }
+
+    pub fn __str__(&self) -> String {
+        self.inner.to_pgn()
     }
 
     pub fn __repr__(&self) -> String {

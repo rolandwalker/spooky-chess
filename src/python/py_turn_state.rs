@@ -35,6 +35,13 @@ impl PyTurnState {
         }
     }
 
+    pub fn __str__(&self) -> String {
+        match &self.state {
+            TurnState::Over(outcome) => format!("{}", outcome),
+            TurnState::Ongoing(moves) => format!("{} legal moves", moves.len()),
+        }
+    }
+
     pub fn __repr__(&self) -> String {
         match &self.state {
             TurnState::Over(outcome) => format!("TurnState(over={})", outcome),

@@ -275,6 +275,18 @@ impl PyGame {
         }
     }
 
+    pub fn __eq__(&self, other: &PyGame) -> bool {
+        // Width and height are encoded in the enum variant, so different
+        // dimensions are always unequal. For same dimensions, we compare
+        // the position-identity hash (board, turn, castling, en passant,
+        // halfmove clock) — the same fields used by __hash__. This mirrors
+        // how chess engines use Zobrist hashes for position identity.
+        dispatch_game!(&self.inner, g => g.width()) == dispatch_game!(&other.inner, g => g.width())
+            && dispatch_game!(&self.inner, g => g.height())
+                == dispatch_game!(&other.inner, g => g.height())
+            && self.__hash__() == other.__hash__()
+    }
+
     pub fn __hash__(&self) -> u64 {
         use std::hash::{Hash, Hasher};
         dispatch_game!(&self.inner, g => {

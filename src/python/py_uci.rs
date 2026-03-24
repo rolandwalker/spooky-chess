@@ -391,6 +391,13 @@ impl PyUciEngine {
         Ok(())
     }
 
+    fn __str__(&self) -> String {
+        match &self.engine {
+            Some(engine) => engine.engine_name().unwrap_or("UciEngine").to_string(),
+            None => "UciEngine(shut down)".to_string(),
+        }
+    }
+
     fn __repr__(&self) -> String {
         match &self.engine {
             Some(engine) => format!(
@@ -399,5 +406,9 @@ impl PyUciEngine {
             ),
             None => "UciEngine(shut down)".to_string(),
         }
+    }
+
+    fn __eq__(&self, other: &PyUciEngine) -> bool {
+        std::ptr::eq(self, other)
     }
 }
