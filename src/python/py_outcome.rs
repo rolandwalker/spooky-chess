@@ -30,6 +30,30 @@ impl PyGameOutcome {
         self.outcome.is_draw()
     }
 
+    pub fn is_checkmate(&self) -> bool {
+        matches!(self.outcome, GameOutcome::WhiteWin | GameOutcome::BlackWin)
+    }
+
+    pub fn is_stalemate(&self) -> bool {
+        self.outcome == GameOutcome::Stalemate
+    }
+
+    pub fn is_insufficient_material(&self) -> bool {
+        self.outcome == GameOutcome::InsufficientMaterial
+    }
+
+    pub fn is_threefold_repetition(&self) -> bool {
+        self.outcome == GameOutcome::ThreefoldRepetition
+    }
+
+    pub fn is_fifty_move_rule(&self) -> bool {
+        self.outcome == GameOutcome::FiftyMoveRule
+    }
+
+    pub fn reason(&self) -> String {
+        self.outcome.to_string()
+    }
+
     pub fn __str__(&self) -> String {
         self.outcome.to_string()
     }
