@@ -36,6 +36,10 @@ impl PyPiece {
         })
     }
 
+    pub fn piece_type(&self) -> String {
+        self.piece.piece_type.to_char().to_string()
+    }
+
     pub fn color(&self) -> i8 {
         self.piece.color as i8
     }
