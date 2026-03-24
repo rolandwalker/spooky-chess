@@ -63,6 +63,40 @@ impl PyMove {
     }
 
     // ---------------------------------------------------------------------
+    // Move flags
+    // ---------------------------------------------------------------------
+
+    #[getter]
+    pub fn is_capture(&self) -> bool {
+        self.move_.flags.contains(MoveFlags::CAPTURE)
+    }
+
+    #[getter]
+    pub fn is_castling(&self) -> bool {
+        self.move_.flags.contains(MoveFlags::CASTLE)
+    }
+
+    #[getter]
+    pub fn is_en_passant(&self) -> bool {
+        self.move_.flags.contains(MoveFlags::EN_PASSANT)
+    }
+
+    #[getter]
+    pub fn is_promotion(&self) -> bool {
+        self.move_.flags.contains(MoveFlags::PROMOTION)
+    }
+
+    #[getter]
+    pub fn is_check(&self) -> bool {
+        self.move_.flags.contains(MoveFlags::CHECK)
+    }
+
+    #[getter]
+    pub fn is_double_push(&self) -> bool {
+        self.move_.flags.contains(MoveFlags::DOUBLE_PUSH)
+    }
+
+    // ---------------------------------------------------------------------
     // Encoding/decoding
     // ---------------------------------------------------------------------
 
